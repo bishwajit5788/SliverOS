@@ -86,26 +86,42 @@ uint32_t mk_kernel_get_tick(void) { return s_kernel.tick; }
 void mk_kernel_get_diag_identity(mk_diag_identity_t *out_identity)
 {
     if (out_identity == NULL) return;
-    memset(out_identity, 0, sizeof(*out_identity));
+    memset(out_identity, 0, sizeof(mk_diag_identity_t));
     strncpy(out_identity->product, "MicroKernel OS", sizeof(out_identity->product) - 1U);
-    strncpy(out_identity->version, "0.1.0", sizeof(out_identity->version) - 1U);
-    strncpy(out_identity->build_id, "20260904", sizeof(out_identity->build_id) - 1U);
+    strncpy(out_identity->version, MK_OS_VERSION, sizeof(out_identity->version) - 1U);
+    strncpy(out_identity->build_id, MK_OS_BUILD_ID, sizeof(out_identity->build_id) - 1U);
     strncpy(out_identity->git_revision, "20260904-rev2", sizeof(out_identity->git_revision) - 1U);
 #if defined(ESP_PLATFORM)
     esp_chip_info_t chip_info;
     esp_chip_info(&chip_info);
-    strncpy(out_identity->chip_family, "ESP32-S3", sizeof(out_identity->chip_family) - 1U);
+    switch (chip_info.model) {
+        case CHIP_ESP32S3: strncpy(out_identity->chip_family, "ESP32-S3", sizeof(out_identity->chip_family) - 1U); break;
+        case CHIP_ESP32C3: strncpy(out_identity->chip_family, "ESP32-C3", sizeof(out_identity->chip_family) - 1U); break;
+        case CHIP_ESP32: strncpy(out_identity->chip_family, "ESP32", sizeof(out_identity->chip_family) - 1U); break;
+        default: strncpy(out_identity->chip_family, "ESP32-GENERIC", sizeof(out_identity->chip_family) - 1U); break;
+    }
     out_identity->chip_revision = chip_info.revision;
     uint32_t flash_size = 0U;
     if (esp_flash_get_size(NULL, &flash_size) == ESP_OK) out_identity->flash_size_bytes = flash_size;
-    out_identity->internal_sram_total = heap_caps_get_total_size(MALLOC_CAP_INTERNAL);
-    out_identity->internal_sram_free = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+    out_identity->internal_sram_total = heap_caps_get_total_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    out_identity->internal_sram_free = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
 #if defined(CONFIG_SPIRAM)
     out_identity->psram_size_bytes = (uint32_t)esp_psram_get_size();
     out_identity->psram_total = heap_caps_get_total_size(MALLOC_CAP_SPIRAM);
     out_identity->psram_free = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
+#else
+    out_identity->psram_size_bytes = 0U;
+    out_identity->psram_total = 0U;
+    out_identity->psram_free = 0U;
 #endif
 #else
-    strncpy(out_identity->chip_family, "HOST", sizeof(out_identity->chip_family) - 1U);
+    strncpy(out_identity->chip_family, "ESP32-S3-SIM", sizeof(out_identity->chip_family) - 1U);
+    out_identity->chip_revision = 1U;
+    out_identity->flash_size_bytes = 8U * 1024U * 1024U;
+    out_identity->psram_size_bytes = 8U * 1024U * 1024U;
+    out_identity->internal_sram_total = 512U * 1024U;
+    out_identity->internal_sram_free = 384U * 1024U;
+    out_identity->psram_total = 8U * 1024U * 1024U;
+    out_identity->psram_free = 8U * 1024U * 1024U;
 #endif
 }
