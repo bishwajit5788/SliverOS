@@ -37,6 +37,7 @@ idf_component_register(
         "apps/retro_games"
     REQUIRES
         esp_timer
+        esp_psram
         driver
         nvs_flash
         esp_wifi
