@@ -1,0 +1,105 @@
+{
+  "product": "MicroKernel OS",
+  "latest": "1.0.0",
+  "releases": [
+    {
+      "version": "1.0.0",
+      "releaseDate": "2026-09-04",
+      "targets": {
+        "esp32": {
+          "chip": "ESP32",
+          "flashSize": "4MB",
+          "is_primary": false,
+          "images": [
+            {
+              "name": "Bootloader Esp32",
+              "offset": "0x1000",
+              "filename": "bootloader_esp32.bin",
+              "size": 28672,
+              "sha256": "52a82803c7da0eb2b0e5203262114d996360bf5ac7d2ee7c1e408c4d34d6eea9",
+              "is_fixture": true
+            },
+            {
+              "name": "Partition-Table",
+              "offset": "0x8000",
+              "filename": "partition-table.bin",
+              "size": 3072,
+              "sha256": "132610ee42b59081929ec0ad79170d9855b100c5bee18f5c2c0a0c0a087271c5",
+              "is_fixture": true
+            },
+            {
+              "name": "Microkernel-Esp32",
+              "offset": "0x10000",
+              "filename": "microkernel-esp32.bin",
+              "size": 419430,
+              "sha256": "14024af373425717739aa2b72c827e54bd9c90bcec1b4ed1d05cf68c203352f6",
+              "is_fixture": true
+            }
+          ]
+        },
+        "esp32c3": {
+          "chip": "ESP32C3",
+          "flashSize": "4MB",
+          "is_primary": false,
+          "images": [
+            {
+              "name": "Bootloader Esp32C3",
+              "offset": "0x0",
+              "filename": "bootloader_esp32c3.bin",
+              "size": 28672,
+              "sha256": "9ef38e966b618703c6d4c47ac30dbf640a06aece9160c0eeb1b2f4b88399e7c2",
+              "is_fixture": true
+            },
+            {
+              "name": "Partition-Table",
+              "offset": "0x8000",
+              "filename": "partition-table.bin",
+              "size": 3072,
+              "sha256": "d8ae57cc0ee76ce48d5a0cd05bd78f5940cfceb10821d9936ac6ad860405dd1e",
+              "is_fixture": true
+            },
+            {
+              "name": "Microkernel-Esp32C3",
+              "offset": "0x10000",
+              "filename": "microkernel-esp32c3.bin",
+              "size": 419430,
+              "sha256": "4298b4db8078879cb70a9131207e7bc8b368856c511421e69f0377a17fd2ff1a",
+              "is_fixture": true
+            }
+          ]
+        },
+        "esp32s3": {
+          "chip": "ESP32S3",
+          "flashSize": "8MB",
+          "is_primary": true,
+          "images": [
+            {
+              "name": "Bootloader Esp32S3",
+              "offset": "0x0",
+              "filename": "bootloader_esp32s3.bin",
+              "size": 28672,
+              "sha256": "20318d022d8034155c154d2ea8674e8f2db282af5ca39b5b22a106b791430001",
+              "is_fixture": true
+            },
+            {
+              "name": "Partition-Table",
+              "offset": "0x8000",
+              "filename": "partition-table.bin",
+              "size": 3072,
+              "sha256": "f2e387c174b537a615b8a9f6da254d53d87bfd38f5b81306bce14bf17ed82a03",
+              "is_fixture": true
+            },
+            {
+              "name": "Microkernel-Esp32S3",
+              "offset": "0x20000",
+              "filename": "microkernel-esp32s3.bin",
+              "size": 419430,
+              "sha256": "2dc20412b7dfc3dac2a31d869ec2fb9bcf61ce0efbcb07494f217dd76c2bd15b",
+              "is_fixture": true
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

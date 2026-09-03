@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MicroKernel OS — Web Serial Flasher</title>
+  <link rel="stylesheet" href="./src/styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <header class="app-header">
+      <div class="header-content">
+        <div class="header-branding">
+          <div class="logo-mark">μK</div>
+          <div>
+            <h1>MICROKERNEL OS FLASHER</h1>
+            <p class="subtitle">Direct-from-Browser ESP-IDF Firmware Installation Engine</p>
+          </div>
+        </div>
+        <div class="header-badges">
+          <span class="badge badge-platform">ESP-IDF v5.x</span>
+          <span class="badge badge-version" id="appVersionBadge">v1.0.0</span>
+          <span class="badge badge-status" id="headerStatusBadge">DISCONNECTED</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <!-- Top Grid: Device Info & Configuration -->
+      <section class="card device-card">
+        <div class="card-header">
+          <h2>ESP32 DEVICE HARDWARE</h2>
+          <div class="card-actions">
+            <button id="btnConnect" class="btn btn-primary">
+              <span class="btn-icon">⚡</span> CONNECT DEVICE
+            </button>
+            <button id="btnDisconnect" class="btn btn-secondary" disabled>
+              DISCONNECT
+            </button>
+          </div>
+        </div>
+
+        <div class="device-grid">
+          <div class="info-group">
+            <span class="info-label">Chip Family</span>
+            <span class="info-value" id="valChipFamily">—</span>
+          </div>
+          <div class="info-group">
+            <span class="info-label">Silicon Revision</span>
+            <span class="info-value" id="valChipRev">—</span>
+          </div>
+          <div class="info-group">
+            <span class="info-label">Flash Capacity</span>
+            <span class="info-value" id="valFlashSize">—</span>
+          </div>
+          <div class="info-group">
+            <span class="info-label">MAC Address</span>
+            <span class="info-value" id="valMacAddress">—</span>
+          </div>
+          <div class="info-group">
+            <span class="info-label">Operating System Target</span>
+            <span class="info-value highlight" id="valTargetFirmware">Auto-detecting...</span>
+          </div>
+          <div class="info-group">
+            <span class="info-label">Link Baudrate</span>
+            <select id="selBaudrate" class="select-input">
+              <option value="115200">115,200 (Safe Bootloader)</option>
+              <option value="460800" selected>460,800 (High Speed)</option>
+              <option value="921600">921,600 (Ultra Fast)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="flashing-actions">
+          <button id="btnFlash" class="btn btn-success btn-large" disabled>
+            <span class="btn-icon">📥</span> INSTALL MICROKERNEL OS
+          </button>
+          <div class="safety-indicator" id="safetyStatusText">
+            Connect an ESP32, ESP32-C3, or ESP32-S3 via USB data cable to begin.
+          </div>
+        </div>
+      </section>
+
+      <!-- Flashing Progress Section -->
+      <section class="card progress-card" id="progressSection">
+        <div class="card-header">
+          <h2>FLASH TRANSFER METRICS</h2>
+          <div class="progress-stats" id="progressMetrics">
+            <span id="metricSpeed">0 KB/s</span>
+            <span class="separator">•</span>
+            <span id="metricTransferred">0 / 0 KB</span>
+            <span class="separator">•</span>
+            <span id="metricEta">ETA: —</span>
+          </div>
+        </div>
+
+        <div class="progress-container">
+          <div class="progress-label-row">
+            <span class="progress-step-title" id="lblOverallStep">Overall Progress</span>
+            <span class="progress-pct" id="lblOverallPct">0%</span>
+          </div>
+          <div class="progress-bar-wrapper">
+            <div class="progress-bar-fill" id="barOverall" style="width: 0%;"></div>
+          </div>
+        </div>
+
+        <div class="image-progress-list" id="imageProgressContainer">
+          <!-- Dynamically populated per image item -->
+        </div>
+      </section>
+
+      <!-- Developer Console Section -->
+      <section class="card console-card">
+        <div class="card-header">
+          <h2>DEVELOPER CONSOLE</h2>
+          <div class="console-actions">
+            <div class="filter-group">
+              <button class="btn-filter active" data-filter="ALL">ALL</button>
+              <button class="btn-filter" data-filter="INFO">INFO</button>
+              <button class="btn-filter" data-filter="WARN">WARN</button>
+              <button class="btn-filter" data-filter="ERROR">ERROR</button>
+              <button class="btn-filter" data-filter="DEBUG">DEBUG</button>
+            </div>
+            <button id="btnClearConsole" class="btn btn-small btn-secondary">CLEAR</button>
+          </div>
+        </div>
+        <div class="console-output" id="consoleOutput" role="log"></div>
+      </section>
+    </main>
+
+    <footer class="app-footer">
+      <div>MicroKernel OS Embedded Executive • Architecture Compliant • C11 Executive &amp; Web Serial Flasher</div>
+    </footer>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

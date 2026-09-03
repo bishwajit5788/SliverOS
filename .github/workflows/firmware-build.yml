@@ -1,0 +1,28 @@
+name: ESP-IDF Firmware Build
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-firmware:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build with ESP-IDF Docker
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v5.2
+          target: esp32s3
+          path: '.'
+
+      - name: Validate Build Artifacts
+        run: |
+          test -f build/bootloader/bootloader.bin
+          test -f build/partition_table/partition-table.bin
+          test -f build/microkernel-esp32.bin
+          echo "All ESP32-S3 firmware build artifacts generated successfully."
