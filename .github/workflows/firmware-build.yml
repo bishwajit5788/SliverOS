@@ -2,7 +2,7 @@ name: ESP-IDF Firmware Build
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, master, 'feat/**' ]
   pull_request:
     branches: [ main, master ]
 
@@ -13,16 +13,33 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build with ESP-IDF Docker
+      - name: Build with ESP-IDF
         uses: espressif/esp-idf-ci-action@v1
         with:
           esp_idf_version: v5.2
           target: esp32s3
           path: '.'
 
-      - name: Validate Build Artifacts
+      - name: Validate Build Artifacts and OTA Headroom
+        shell: bash
         run: |
+          set -euo pipefail
           test -f build/bootloader/bootloader.bin
           test -f build/partition_table/partition-table.bin
           test -f build/microkernel-esp32.bin
-          echo "All ESP32-S3 firmware build artifacts generated successfully."
+
+          APP_SIZE=$(stat -c%s build/microkernel-esp32.bin)
+          OTA_SLOT=$((0x280000))
+          HEADROOM=$((OTA_SLOT - APP_SIZE))
+          echo "Application image: ${APP_SIZE} bytes"
+          echo "OTA slot:         ${OTA_SLOT} bytes"
+          echo "OTA headroom:     ${HEADROOM} bytes"
+
+          if [ "${APP_SIZE}" -gt "${OTA_SLOT}" ]; then
+            echo "ERROR: application image exceeds ota_0/ota_1 slot"
+            exit 1
+          fi
+
+          echo "Configured partition table:"
+          cat partitions.csv
+          echo "ESP32-S3 firmware artifacts and OTA sizing validated."
