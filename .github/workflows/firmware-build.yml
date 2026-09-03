@@ -27,6 +27,7 @@ jobs:
           test -f build/bootloader/bootloader.bin
           test -f build/partition_table/partition-table.bin
           test -f build/microkernel-esp32.bin
+          test -f build/microkernel-esp32.map
 
           APP_SIZE=$(stat -c%s build/microkernel-esp32.bin)
           OTA_SLOT=$((0x280000))
@@ -34,12 +35,38 @@ jobs:
           echo "Application image: ${APP_SIZE} bytes"
           echo "OTA slot:         ${OTA_SLOT} bytes"
           echo "OTA headroom:     ${HEADROOM} bytes"
-
           if [ "${APP_SIZE}" -gt "${OTA_SLOT}" ]; then
             echo "ERROR: application image exceeds ota_0/ota_1 slot"
             exit 1
           fi
 
-          echo "Configured partition table:"
-          cat partitions.csv
-          echo "ESP32-S3 firmware artifacts and OTA sizing validated."
+          echo "Checking explicit internal-DRAM ownership markers..."
+          grep -q 'static MK_INTERNAL_DRAM mk_kernel_t s_kernel' os/kernel/kernel.c
+          grep -q 'static MK_INTERNAL_DRAM uint8_t s_arena_buffer' os/kernel/memory_manager.c
+          grep -q 'static MK_INTERNAL_DRAM uint8_t s_pool_buf_0' os/kernel/memory_pool.c
+          grep -q 'static MK_INTERNAL_DRAM uint8_t s_pool_buf_4' os/kernel/memory_pool.c
+
+          echo "Checking partition table bounds..."
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+          rows = []
+          for line in Path('partitions.csv').read_text().splitlines():
+              line = line.split('#', 1)[0].strip()
+              if not line or line.startswith('Name'):
+                  continue
+              fields = [x.strip() for x in line.split(',')]
+              if len(fields) < 5:
+                  continue
+              off = int(fields[3], 0)
+              size = int(fields[4], 0)
+              rows.append((fields[0], off, size))
+          for name, off, size in rows:
+              assert off + size <= 0x800000, f'{name} exceeds 8MiB flash'
+          ota = {n: (o, s) for n, o, s in rows if n in ('ota_0', 'ota_1')}
+          assert ota.get('ota_0', (0, 0))[1] == 0x280000
+          assert ota.get('ota_1', (0, 0))[1] == 0x280000
+          print('Partition bounds and OTA slot sizes valid.')
+          PY
+
+          echo "ESP32-S3 firmware artifacts, memory markers, and OTA sizing validated."
