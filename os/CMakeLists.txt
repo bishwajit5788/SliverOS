@@ -23,6 +23,7 @@ idf_component_register(
         "apps/ble_hid/macro_parser.c"
         "apps/wifi_diagnostics/wifi_diagnostics.c"
         "apps/network_diagnostics/network_diagnostics.c"
+        "apps/network_diagnostics/network_terminal.c"
         "apps/retro_games/retro_games.c"
         "apps/retro_games/input.c"
         "apps/retro_games/renderer.c"
