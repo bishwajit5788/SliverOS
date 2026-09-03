@@ -2,6 +2,8 @@
 
 A **Custom Cooperative Embedded OS Executive running on ESP-IDF**, paired with a **Browser-Based Web Serial Firmware Flasher**.
 
+**Live Web Flasher:** https://sliver-o232adi1r-bishwajit5788.vercel.app/
+
 Targeted primarily for the **ESP32-S3-DevKitC-1** (8MB Octal Flash, 8MB PSRAM, Native USB-Serial/JTAG), with architectural extensibility for future ports to ESP32 and ESP32-C3.
 
 ---
@@ -10,7 +12,7 @@ Targeted primarily for the **ESP32-S3-DevKitC-1** (8MB Octal Flash, 8MB PSRAM, N
 
 1. **Cooperative Round-Robin Scheduler**:
    - Single FreeRTOS executive thread; zero multi-threading jitter or stack bloat.
-   - 3-tier arbitration: Priority $\to$ Period Eligibility $\to$ Equal-Priority Round-Robin.
+   - 3-tier arbitration: Priority $\\to$ Period Eligibility $\\to$ Equal-Priority Round-Robin.
    - Microsecond execution telemetry and budget overrun detection (`last_execution_us`, `worst_execution_us`, `overrun_count`).
    - Hardware Task Watchdog Timer (TWDT) liveness integration.
 
@@ -63,6 +65,14 @@ microkernel-esp32/
 ├── docs/                         # Comprehensive engineering documentation
 └── .github/workflows/            # CI workflows for host tests, flasher, and IDF build
 ```
+
+## Web Flasher
+
+The beginner-oriented SliverOS Web Flasher is deployed on Vercel:
+
+**https://sliver-o232adi1r-bishwajit5788.vercel.app/**
+
+For deployment details and the intended beginner installation flow, see [`VERCEL.md`](./VERCEL.md).
 
 ---
 
