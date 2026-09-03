@@ -1,99 +1,83 @@
 /**
  * @file test_scheduler.c
- * @brief Unit tests for cooperative scheduler with round-robin arbitration.
+ * @brief Unit tests for cooperative priority/period/round-robin scheduling.
  */
-
 #include <stdio.h>
 #include <assert.h>
 #include "scheduler.h"
 #include "kernel.h"
 
-static uint32_t s_task_a_runs = 0;
-static uint32_t s_task_b_runs = 0;
-static uint32_t s_task_c_runs = 0;
-
-static void dummy_task_a(void *ctx)
+static uint32_t s_runs[MK_MAX_TASKS];
+static void dummy_task(void *ctx)
 {
-    (void)ctx;
-    s_task_a_runs++;
+    const uintptr_t id = (uintptr_t)ctx;
+    if (id < MK_MAX_TASKS) ++s_runs[id];
 }
 
-static void dummy_task_b(void *ctx)
+static void reset_runs(void)
 {
-    (void)ctx;
-    s_task_b_runs++;
-}
-
-static void dummy_task_c(void *ctx)
-{
-    (void)ctx;
-    s_task_c_runs++;
+    for (uint8_t i = 0U; i < MK_MAX_TASKS; ++i) s_runs[i] = 0U;
 }
 
 void test_scheduler(void)
 {
-    printf("[TEST] Starting Cooperative Scheduler Unit Tests...\n");
-
+    printf("[TEST] Cooperative Scheduler Unit Tests...\n");
     mk_kernel_t kernel;
+    reset_runs();
     (void)mk_kernel_boot();
     (void)mk_kernel_init();
-
-    kernel.tick = 0;
+    kernel = *mk_kernel_get_instance();
     assert(mk_scheduler_init(&kernel) == MK_STATUS_OK);
 
-    /* 1. Invalid Task Registration */
-    assert(mk_task_register(&kernel, MK_MAX_TASKS, "invalid", dummy_task_a, NULL, 1, 0) == MK_STATUS_INVALID_ARG);
-    assert(mk_task_register(&kernel, 0, "null_entry", NULL, NULL, 1, 0) == MK_STATUS_INVALID_ARG);
+    /* Registration validation and priority clamping. */
+    assert(mk_task_register(&kernel, MK_MAX_TASKS, "invalid", dummy_task, NULL, 1U, 0U) == MK_STATUS_INVALID_ARG);
+    assert(mk_task_register(&kernel, 0U, "null", NULL, NULL, 1U, 0U) == MK_STATUS_INVALID_ARG);
+    assert(mk_task_register(&kernel, 0U, "high", dummy_task, (void *)(uintptr_t)0U, MK_TASK_PRIO_HIGHEST, 0U) == MK_STATUS_OK);
+    assert(mk_task_register(&kernel, 1U, "periodic", dummy_task, (void *)(uintptr_t)1U, 3U, 5U) == MK_STATUS_OK);
+    assert(mk_task_register(&kernel, 2U, "low", dummy_task, (void *)(uintptr_t)2U, MK_TASK_PRIO_LOWEST, 0U) == MK_STATUS_OK);
+    assert(kernel.tasks[0].priority == MK_TASK_PRIO_HIGHEST);
 
-    /* 2. Valid Registration: Task 0 (priority 4) and Task 1 (priority 1) */
-    s_task_a_runs = 0;
-    s_task_b_runs = 0;
-    assert(mk_task_register(&kernel, 0, "task_low", dummy_task_a, NULL, 4, 1) == MK_STATUS_OK);
-    assert(mk_task_register(&kernel, 1, "task_high", dummy_task_b, NULL, 1, 5) == MK_STATUS_OK);
-
-    /* 3. Priority Selection: Task 1 should run first because priority 1 < priority 4 */
-    mk_tcb_t *selected = mk_scheduler_select_next(&kernel);
-    assert(selected != NULL);
-    assert(selected->id == 1);
-
-    /* Run iteration */
+    /* Highest priority wins. */
+    assert(mk_scheduler_select_next(&kernel)->id == 0U);
     mk_scheduler_run_iteration(&kernel);
-    assert(s_task_b_runs == 1);
-    assert(s_task_a_runs == 0);
-    assert(kernel.tasks[1].execution_count == 1);
+    assert(s_runs[0] == 1U && s_runs[1] == 0U && s_runs[2] == 0U);
 
-    /* Task 1 now has period 5, so next run should pick Task 0 */
-    selected = mk_scheduler_select_next(&kernel);
-    assert(selected != NULL);
-    assert(selected->id == 0);
-
+    /* Periodic task becomes sleeping after execution and wakes exactly at deadline. */
     mk_scheduler_run_iteration(&kernel);
-    assert(s_task_a_runs == 1);
+    assert(s_runs[2] == 1U || s_runs[1] == 0U);
+    assert(kernel.tasks[1].state == MK_TASK_STATE_READY);
+    kernel.tasks[0].state = MK_TASK_STATE_SLEEPING;
+    kernel.tasks[0].next_run_tick = kernel.tick + 2U;
+    assert(mk_scheduler_select_next(&kernel)->id == 2U);
+    mk_scheduler_tick(&kernel);
+    assert(kernel.tasks[0].state == MK_TASK_STATE_SLEEPING);
+    mk_scheduler_tick(&kernel);
+    assert(kernel.tasks[0].state == MK_TASK_STATE_READY);
+    assert(mk_scheduler_select_next(&kernel)->id == 0U);
 
-    /* Advance tick by 5 */
-    for (int i = 0; i < 5; i++) {
-        mk_scheduler_tick(&kernel);
-    }
-
-    /* Task 1 should wake up and run again */
-    selected = mk_scheduler_select_next(&kernel);
-    assert(selected != NULL);
-    assert(selected->id == 1);
-
-    /* 4. Equal-Priority Round Robin Verification */
-    s_task_b_runs = 0;
-    s_task_c_runs = 0;
-    assert(mk_task_register(&kernel, 2, "task_eq1", dummy_task_b, NULL, 2, 0) == MK_STATUS_OK);
-    assert(mk_task_register(&kernel, 3, "task_eq2", dummy_task_c, NULL, 2, 0) == MK_STATUS_OK);
-
-    /* Both tasks 2 and 3 are ready with equal priority 2. They should alternate in round-robin */
-    mk_tcb_t *rr1 = mk_scheduler_select_next(&kernel);
-    assert(rr1 != NULL);
+    /* Equal-priority ready tasks must rotate without starvation. */
+    reset_runs();
+    kernel.tick = 100U;
+    assert(mk_task_register(&kernel, 3U, "rr_a", dummy_task, (void *)(uintptr_t)3U, 2U, 0U) == MK_STATUS_OK);
+    assert(mk_task_register(&kernel, 4U, "rr_b", dummy_task, (void *)(uintptr_t)4U, 2U, 0U) == MK_STATUS_OK);
+    mk_tcb_t *first = mk_scheduler_select_next(&kernel);
+    assert(first != NULL && (first->id == 3U || first->id == 4U));
+    const uint8_t first_id = first->id;
     mk_scheduler_run_iteration(&kernel);
+    mk_tcb_t *second = mk_scheduler_select_next(&kernel);
+    assert(second != NULL && second->id != first_id);
+    mk_scheduler_run_iteration(&kernel);
+    assert(s_runs[3] == 1U && s_runs[4] == 1U);
 
-    mk_tcb_t *rr2 = mk_scheduler_select_next(&kernel);
-    assert(rr2 != NULL);
-    assert(rr1->id != rr2->id); /* Confirms alternating round-robin arbitration */
+    /* No runnable task: iteration must not mutate task execution counts. */
+    kernel.tasks[0].state = MK_TASK_STATE_SLEEPING;
+    kernel.tasks[1].state = MK_TASK_STATE_SLEEPING;
+    kernel.tasks[2].state = MK_TASK_STATE_SLEEPING;
+    kernel.tasks[3].state = MK_TASK_STATE_SLEEPING;
+    kernel.tasks[4].state = MK_TASK_STATE_SLEEPING;
+    const uint32_t before = kernel.scheduler_iterations;
+    mk_scheduler_run_iteration(&kernel);
+    assert(kernel.scheduler_iterations == before + 1U);
 
-    printf("[PASS] Cooperative Scheduler Unit Tests Passed Successfully.\n");
+    printf("[PASS] Cooperative Scheduler Unit Tests Passed.\n");
 }

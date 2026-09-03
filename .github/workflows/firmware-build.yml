@@ -2,7 +2,7 @@ name: ESP-IDF Firmware Build
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, master, 'feat/**' ]
   pull_request:
     branches: [ main, master ]
 
@@ -13,16 +13,58 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build with ESP-IDF Docker
+      - name: Build with ESP-IDF
         uses: espressif/esp-idf-ci-action@v1
         with:
           esp_idf_version: v5.2
           target: esp32s3
           path: '.'
 
-      - name: Validate Build Artifacts
+      - name: Validate Build Artifacts and OTA Headroom
+        shell: bash
         run: |
+          set -euo pipefail
           test -f build/bootloader/bootloader.bin
           test -f build/partition_table/partition-table.bin
           test -f build/microkernel-esp32.bin
-          echo "All ESP32-S3 firmware build artifacts generated successfully."
+          test -f build/microkernel-esp32.map
+          APP_SIZE=$(stat -c%s build/microkernel-esp32.bin)
+          OTA_SLOT=$((0x280000))
+          HEADROOM=$((OTA_SLOT - APP_SIZE))
+          echo "Application image: ${APP_SIZE} bytes"
+          echo "OTA slot:         ${OTA_SLOT} bytes"
+          echo "OTA headroom:     ${HEADROOM} bytes"
+          if [ "${APP_SIZE}" -gt "${OTA_SLOT}" ]; then
+            echo "ERROR: application image exceeds ota_0/ota_1 slot"
+            exit 1
+          fi
+
+          echo "Checking internal-DRAM source markers..."
+          grep -q 'static MK_INTERNAL_DRAM mk_kernel_t s_kernel' os/kernel/kernel.c
+          grep -q 'static MK_INTERNAL_DRAM uint8_t s_arena_buffer' os/kernel/memory_manager.c
+          grep -q 'static MK_INTERNAL_DRAM uint8_t s_pool_buf_0' os/kernel/memory_pool.c
+          grep -q 'static MK_INTERNAL_DRAM uint8_t s_pool_buf_4' os/kernel/memory_pool.c
+
+          python3 tools/check_memory_layout.py build/microkernel-esp32.map
+
+          echo "Checking partition table bounds..."
+          python3 - <<'PY'
+          from pathlib import Path
+          rows = []
+          for line in Path('partitions.csv').read_text().splitlines():
+              line = line.split('#', 1)[0].strip()
+              if not line or line.startswith('Name'):
+                  continue
+              fields = [x.strip() for x in line.split(',')]
+              if len(fields) < 5:
+                  continue
+              rows.append((fields[0], int(fields[3], 0), int(fields[4], 0)))
+          for name, off, size in rows:
+              assert off + size <= 0x800000, f'{name} exceeds 8MiB flash'
+          ota = {n: (o, s) for n, o, s in rows if n in ('ota_0', 'ota_1')}
+          assert ota.get('ota_0', (0, 0))[1] == 0x280000
+          assert ota.get('ota_1', (0, 0))[1] == 0x280000
+          print('Partition bounds and OTA slot sizes valid.')
+          PY
+
+          echo "ESP32-S3 firmware artifacts, linker placement, and OTA sizing validated."
