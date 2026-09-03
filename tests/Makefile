@@ -18,6 +18,9 @@ SRCS = test_runner.c \
        test_macro_parser.c \
        test_vfs_block.c \
        test_vfs_recovery.c \
+       test_wifi_classification.c \
+       test_net_state_machine.c \
+       test_game_physics.c \
        ../os/kernel/kernel.c \
        ../os/kernel/scheduler.c \
        ../os/kernel/state_machine.c \
@@ -33,7 +36,12 @@ SRCS = test_runner.c \
        ../os/vfs/vfs.c \
        ../os/vfs/vfs_block.c \
        ../os/vfs/vfs_log.c \
-       ../os/apps/ble_hid/macro_parser.c
+       ../os/apps/ble_hid/macro_parser.c \
+       ../os/apps/wifi_diagnostics/wifi_diagnostics.c \
+       ../os/apps/network_diagnostics/network_diagnostics.c \
+       ../os/apps/retro_games/retro_games.c \
+       ../os/apps/retro_games/input.c \
+       ../os/apps/retro_games/renderer.c
 
 TARGET = test_runner
 

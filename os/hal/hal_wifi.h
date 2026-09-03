@@ -52,6 +52,7 @@ bool hal_wifi_queue_pop(hal_wifi_frame_meta_t *out_meta);
  */
 uint32_t hal_wifi_get_dropped_count(void);
 uint32_t hal_wifi_get_captured_count(void);
+void hal_wifi_inject_frame_for_test(const uint8_t *payload, uint16_t len, int8_t rssi);
 
 #ifdef __cplusplus
 }

@@ -151,7 +151,7 @@ typedef enum {
 } mk_event_type_t;
 
 /* Fixed-size Event Record */
-typedef struct {
+typedef struct mk_event {
     mk_event_type_t type;
     uint32_t timestamp_us;
     uint32_t source_id;
@@ -159,6 +159,18 @@ typedef struct {
     uint32_t param2;
     void *payload;
 } mk_event_t;
+
+/* Unified Application Lifecycle Interface */
+typedef struct {
+    mk_app_id_t id;
+    const char *name;
+    mk_status_t (*init)(void);
+    mk_status_t (*start)(void);
+    void (*tick)(void *context);
+    void (*handle_event)(const mk_event_t *event);
+    mk_status_t (*stop)(void);
+    mk_status_t (*reset)(void);
+} mk_app_interface_t;
 
 /* Kernel Control Block - Stored in Internal SRAM */
 typedef struct {

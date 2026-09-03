@@ -39,9 +39,13 @@ typedef struct {
 } net_diag_report_t;
 
 mk_status_t network_diagnostics_init(void);
+mk_status_t network_diagnostics_start(void);
+mk_status_t network_diagnostics_stop(void);
+mk_status_t network_diagnostics_reset(void);
 mk_status_t network_diagnostics_set_target(const char *target_ip);
 void network_diagnostics_task(void *context);
 void network_diagnostics_get_report(net_diag_report_t *out_report);
+const mk_app_interface_t *network_diagnostics_get_interface(void);
 
 #ifdef __cplusplus
 }

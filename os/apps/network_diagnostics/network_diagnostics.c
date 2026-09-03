@@ -172,3 +172,45 @@ void network_diagnostics_get_report(net_diag_report_t *out_report)
         *out_report = s_report;
     }
 }
+
+mk_status_t network_diagnostics_start(void)
+{
+    if (s_report.target_configured) {
+        s_report.current_state = NET_DIAG_ICMP_PENDING;
+    } else {
+        s_report.current_state = NET_DIAG_IDLE;
+    }
+    return MK_STATUS_OK;
+}
+
+mk_status_t network_diagnostics_stop(void)
+{
+    s_report.current_state = NET_DIAG_IDLE;
+    return MK_STATUS_OK;
+}
+
+mk_status_t network_diagnostics_reset(void)
+{
+    return network_diagnostics_init();
+}
+
+static void network_diagnostics_handle_event(const mk_event_t *event)
+{
+    (void)event;
+}
+
+static const mk_app_interface_t s_net_diag_interface = {
+    .id = MK_APP_NETWORK_DIAGNOSTICS,
+    .name = "NET_DIAG",
+    .init = network_diagnostics_init,
+    .start = network_diagnostics_start,
+    .tick = network_diagnostics_task,
+    .handle_event = network_diagnostics_handle_event,
+    .stop = network_diagnostics_stop,
+    .reset = network_diagnostics_reset
+};
+
+const mk_app_interface_t *network_diagnostics_get_interface(void)
+{
+    return &s_net_diag_interface;
+}

@@ -31,8 +31,10 @@ typedef struct {
 mk_status_t retro_games_init(void);
 mk_status_t retro_games_start(void);
 mk_status_t retro_games_stop(void);
+mk_status_t retro_games_reset(void);
 void retro_games_task(void *context);
 void retro_games_get_lander(game_lander_t *out_lander);
+const mk_app_interface_t *retro_games_get_interface(void);
 
 #ifdef __cplusplus
 }

@@ -78,7 +78,7 @@
               "offset": "0x0",
               "filename": "bootloader_esp32s3.bin",
               "size": 28672,
-              "sha256": "20318d022d8034155c154d2ea8674e8f2db282af5ca39b5b22a106b791430001",
+              "sha256": "34a784a92bcfd78427e3eacee856bf57d65a03d017b82b1011315894d95181e5",
               "is_fixture": true
             },
             {
@@ -86,7 +86,7 @@
               "offset": "0x8000",
               "filename": "partition-table.bin",
               "size": 3072,
-              "sha256": "f2e387c174b537a615b8a9f6da254d53d87bfd38f5b81306bce14bf17ed82a03",
+              "sha256": "3fbf01acb705467a0fee62f3f2932ea5f540facea87b2f6daf92919b465765de",
               "is_fixture": true
             },
             {
@@ -94,7 +94,7 @@
               "offset": "0x20000",
               "filename": "microkernel-esp32s3.bin",
               "size": 419430,
-              "sha256": "2dc20412b7dfc3dac2a31d869ec2fb9bcf61ce0efbcb07494f217dd76c2bd15b",
+              "sha256": "b5d89c37435eb4fbcfffc213f7cd3dee4c822a31f6bae324cd10eaa65b10e767",
               "is_fixture": true
             }
           ]

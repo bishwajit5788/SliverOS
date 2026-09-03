@@ -106,3 +106,24 @@ void wifi_diagnostics_get_stats(wifi_diag_stats_t *out_stats)
         *out_stats = s_stats;
     }
 }
+
+static void wifi_diagnostics_handle_event(const mk_event_t *event)
+{
+    (void)event;
+}
+
+static const mk_app_interface_t s_wifi_diag_interface = {
+    .id = MK_APP_WIFI_DIAGNOSTICS,
+    .name = "WIFI_DIAG",
+    .init = wifi_diagnostics_init,
+    .start = wifi_diagnostics_start,
+    .tick = wifi_diagnostics_task,
+    .handle_event = wifi_diagnostics_handle_event,
+    .stop = wifi_diagnostics_stop,
+    .reset = wifi_diagnostics_init
+};
+
+const mk_app_interface_t *wifi_diagnostics_get_interface(void)
+{
+    return &s_wifi_diag_interface;
+}

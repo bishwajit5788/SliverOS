@@ -16,6 +16,7 @@ mk_status_t ble_hid_init(void);
 mk_status_t ble_hid_start(void);
 mk_status_t ble_hid_stop(void);
 void ble_hid_task(void *context);
+const mk_app_interface_t *ble_hid_get_interface(void);
 
 #ifdef __cplusplus
 }

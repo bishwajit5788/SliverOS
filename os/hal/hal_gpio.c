@@ -20,6 +20,7 @@ typedef struct {
 } debounce_state_t;
 
 static debounce_state_t s_debounce_tbl[MAX_DEBOUNCE_PINS];
+static bool s_gpio_initialized = false;
 
 mk_status_t hal_gpio_init(void)
 {
@@ -37,6 +38,7 @@ mk_status_t hal_gpio_init(void)
     (void)hal_gpio_config(HAL_PIN_BUTTON_A, HAL_GPIO_MODE_INPUT_PULLUP);
     (void)hal_gpio_config(HAL_PIN_BUTTON_B, HAL_GPIO_MODE_INPUT_PULLUP);
 
+    s_gpio_initialized = true;
     return MK_STATUS_OK;
 }
 
@@ -106,6 +108,10 @@ uint8_t hal_gpio_read(uint32_t pin)
 
 uint8_t hal_gpio_read_debounced(uint32_t pin, uint32_t debounce_ms)
 {
+    if (!s_gpio_initialized) {
+        (void)hal_gpio_init();
+    }
+
     if (pin >= MAX_DEBOUNCE_PINS) {
         return hal_gpio_read(pin);
     }

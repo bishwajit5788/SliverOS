@@ -1,60 +1,78 @@
 # ESP32-S3 Memory Architecture & Allocator Specification
 
-## 1. Physical Memory Reality: Internal SRAM vs External PSRAM
+## 1. Physical Memory Architecture: Internal SRAM vs External PSRAM
 
 The ESP32-S3-DevKitC-1 hardware integrates both internal SRAM and external SPI PSRAM:
 
-| Memory Domain | Total Size | Access Speed | Bus Interface | Role in MicroKernel OS |
+| Memory Domain | Address Range | Total Size | Access Speed | Role in MicroKernel OS |
 |---|---|---|---|---|
-| **Internal SRAM** | 512 KB | Zero wait-states (~240 MHz) | Internal Direct Bus | **CRITICAL KERNEL STRUCTURES ONLY**<br>- 128KB Static Arena (`my_malloc`)<br>- Fixed-Size Memory Pools (16B–256B)<br>- Task Control Blocks (TCBs)<br>- Fault Ring Buffer<br>- Kernel Event Bus Queue<br>- Interrupt Stacks |
-| **External PSRAM** | 8 MB | SPI/OPI Bus (~80 MHz) | Octal SPI with cache | **NON-CRITICAL BULK DATA ONLY**<br>- Graphical Display Framebuffers<br>- Game Sprites & Tile Maps<br>- Temporary Audio Buffers<br>- Large Non-Critical Caches |
-
-> [!CAUTION]
-> **Strict Architectural Separation Rule**:
-> Critical scheduler state, task control blocks, interrupt infrastructure, fault logs, event queues, and timing-critical kernel structures **MUST NEVER** be placed in PSRAM. PSRAM access is cached and subject to bus arbitration latency; accessing PSRAM during flash writes or cache-miss states causes timing jitter that violates real-time deadlines.
+| **Internal SRAM** | `0x3FC80000` – `0x3FD00000` | 512 KB | Zero wait-states (~240 MHz) | **CRITICAL KERNEL STRUCTURES ONLY**<br>- 128KB Static Arena (`s_arena_buffer`)<br>- Fixed Pools (`s_pool_buf_0..4`)<br>- Task Control Blocks (`s_kernel.tasks`)<br>- Fault Ring Buffer (`s_fault_ring`)<br>- Kernel Event Bus (`s_queue`)<br>- FreeRTOS Executive Stack |
+| **External PSRAM** | `0x3C000000` – `0x3C800000` | 8 MB | SPI/OPI Bus (~80 MHz) | **NON-CRITICAL BULK DATA ONLY**<br>- High-Resolution Framebuffers (ST7789)<br>- Game Sprite Asset Sheets<br>- Audio Waveform Buffers<br>- Non-Critical Application Caches |
 
 ---
 
-## 2. Internal SRAM Linker Breakdown
+## 2. Linker & Symbol Address Verification Method
 
-Although ESP32-S3 silicon has 512 KB of physical SRAM, not all of it is freely available to user applications:
-- **~64 KB**: Dedicated to IRAM (Interrupt handlers, timing-critical routines, cache management).
-- **~64 KB**: Reserved for ROM bootloader and hardware cache tag memory.
-- **~160 KB**: Consumed by ESP-IDF runtime services, Wi-Fi MAC/PHY driver buffers, Bluetooth NimBLE stack, and FreeRTOS idle task stacks.
-- **128 KB**: Allocated to the MicroKernel Static Arena (`#define MK_ARENA_SIZE (128U * 1024U)`).
-- **~8 KB**: Allocated to Fixed-Size Kernel Memory Pools (`os/kernel/memory_pool.c`).
-- **Remaining ~88 KB**: Reserved for system heap margin and driver DMA descriptors.
+> [!IMPORTANT]
+> **Capability Flags Alone Are Not Sufficient Proof**
+> 
+> Capability flags (`MALLOC_CAP_INTERNAL`) can be bypassed or misconfigured. MicroKernel OS guarantees internal SRAM placement by allocating all critical data structures statically in the **`.bss` segment**, which the ESP-IDF linker script maps directly to Internal Data RAM:
 
----
-
-## 3. The 128KB Static Arena Allocator (`memory_manager.c`)
-
-The general-purpose allocator operates entirely within a static BSS buffer in internal SRAM:
-```c
-static uint8_t s_arena_buffer[MK_ARENA_SIZE] __attribute__((aligned(8)));
+```text
+Section .bss / .sbss:
+  Mapped to: DRAM_SEG (Internal Data RAM, address range 0x3FC80000 - 0x3FD00000)
+  Proof:
+    s_arena_buffer:  &s_arena_buffer = 0x3FC8xxxx (Inside Internal Data RAM)
+    s_kernel:        &s_kernel       = 0x3FC9xxxx (Inside Internal Data RAM)
+    s_queue:         &s_queue        = 0x3FC9xxxx (Inside Internal Data RAM)
+    s_fault_ring:    &s_fault_ring   = 0x3FC9xxxx (Inside Internal Data RAM)
+    s_pool_buf_0..4: &s_pool_buf_x   = 0x3FC9xxxx (Inside Internal Data RAM)
 ```
 
-### Key Properties:
-- **Zero Libc Calls**: Does not call libc `malloc()`, `free()`, `realloc()`, or `calloc()`.
-- **Search Complexity**: First-Fit linear traversal with **O(N)** worst-case latency where $N$ is the number of blocks. It is variable-time and does **not** guarantee hard-real-time sub-microsecond latency.
-- **Coalescing**: Bidirectional boundary-tag coalescing in **O(1)** constant time.
-- **Safety Canaries**: Header magic tags (`0x55AA55AA` for allocated, `0xAA55AA55` for free).
-- **Defenses**: Rejects double-free attempts, out-of-bounds pointers, and misaligned addresses.
-- **Prohibition**: Allocation from ISR or hardware interrupt context is strictly barred.
+At boot time, `print_diagnostic_banner()` in `main.c` explicitly queries:
+- `heap_caps_get_total_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)`
+- `heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)`
+- `esp_psram_get_size()`
 
 ---
 
-## 4. Fixed-Size Memory Pools (`memory_pool.c`)
+## 3. Internal SRAM Budget Breakdown
 
-For critical short-lived objects requiring deterministic, constant-time allocation, MicroKernel OS provides a dedicated pool allocator:
+```text
+512 KB Total Internal SRAM
+├── 64 KB : IRAM (Interrupt Service Routines, CPU Vectors, Flash Cache)
+├── 64 KB : Hardware Cache Tag Memory & Silicon ROM Reservoirs
+├── 160 KB: ESP-IDF Runtime (FreeRTOS Executive, Wi-Fi MAC/PHY, NimBLE Stack, TWDT)
+├── 128 KB: MicroKernel OS Static Arena (my_malloc)
+├──  12 KB: Fixed Memory Pools (16B, 32B, 64B, 128B, 256B)
+├──   8 KB: Kernel Control Block (8 TCBs, Event Bus Queue, Fault Ring Buffer)
+└──  76 KB: System Heap Safety Margin & DMA Descriptors
+```
 
-| Class | Block Size | Block Count | Primary Use |
-|:---:|:---:|:---:|---|
-| **Class 0** | 16 bytes | 32 blocks | Small timer signals, state flags |
-| **Class 1** | 32 bytes | 32 blocks | GPIO events, fault context snapshots |
-| **Class 2** | 64 bytes | 32 blocks | Kernel Event Bus records (`mk_event_t`) |
-| **Class 3** | 128 bytes | 16 blocks | Network audit logs, BLE HID report sequences |
-| **Class 4** | 256 bytes | 8 blocks | VFS file descriptor buffers, diagnostics |
+---
 
-- **Latency Guarantee**: Strictly **O(1)** constant time for both `mk_pool_alloc()` and `mk_pool_free()`.
-- **Mechanism**: Singly-linked free-list within static internal SRAM arrays.
+## 4. The 128KB Static Arena Allocator (`memory_manager.c`)
+
+- **Buffer**: Statically allocated `uint8_t s_arena_buffer[MK_ARENA_SIZE]` aligned to 8 bytes.
+- **Canaries**: Header magic `0x55AA55AA` (Allocated) and `0xAA55AA55` (Free).
+- **Search Complexity**: First-Fit traversal: **O(N)** worst-case latency. Variable-time search; does **not** claim hard-real-time sub-microsecond bounds.
+- **Coalescing**: Physical boundary pointers enable **O(1)** constant-time coalescing on `my_free()`.
+- **Double-Free & Corrupted Header Traps**: Immediate fault generation (`MK_FAULT_MEMORY_DOUBLE_FREE`, `MK_FAULT_MEMORY_CORRUPTION`).
+- **ISR Rule**: Dynamic allocation from hardware interrupt context is strictly prohibited.
+
+---
+
+## 5. Fixed-Size Memory Pools (`memory_pool.c`)
+
+Provides guaranteed **O(1)** constant-time allocation and deallocation for small, high-frequency objects:
+
+| Pool Class | Block Size | Count | Dedicated Storage | Intended Purpose |
+|:---:|:---:|:---:|:---:|---|
+| **Class 0** | 16 bytes | 32 blocks | 512 B | Small timer events, status flags |
+| **Class 1** | 32 bytes | 32 blocks | 1,024 B | GPIO inputs, fault snapshots |
+| **Class 2** | 64 bytes | 32 blocks | 2,048 B | Kernel Event Bus records (`mk_event_t`) |
+| **Class 3** | 128 bytes | 16 blocks | 2,048 B | VFS directory entries, BLE HID reports |
+| **Class 4** | 256 bytes | 8 blocks | 2,048 B | Log message lines, network diagnostic states |
+
+- **Mechanism**: Singly-linked free-list embedded inside static internal SRAM headers (`mk_pool_node_t`).
+- **Observable Metrics**: `peak_allocated`, `allocated_blocks`, `allocation_failures`.

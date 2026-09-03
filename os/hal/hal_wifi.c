@@ -176,3 +176,28 @@ uint32_t hal_wifi_get_captured_count(void)
 {
     return s_captured;
 }
+
+void hal_wifi_inject_frame_for_test(const uint8_t *payload, uint16_t len, int8_t rssi)
+{
+    if (payload == NULL || len < 2) return;
+    const uint16_t fc = (uint16_t)payload[0] | ((uint16_t)payload[1] << 8);
+    const uint8_t f_type = (uint8_t)((fc >> 2) & 0x03U);
+    const uint8_t f_subtype = (uint8_t)((fc >> 4) & 0x0FU);
+
+    if (s_count >= HAL_WIFI_QUEUE_CAPACITY) {
+        s_dropped++;
+        return;
+    }
+
+    hal_wifi_frame_meta_t *meta = &s_queue[s_head];
+    meta->timestamp_ms = (uint32_t)hal_timer_get_ms();
+    meta->rssi = rssi;
+    meta->channel = s_current_channel;
+    meta->length = len;
+    meta->frame_type = f_type;
+    meta->frame_subtype = f_subtype;
+
+    s_head = (s_head + 1U) % HAL_WIFI_QUEUE_CAPACITY;
+    s_count++;
+    s_captured++;
+}

@@ -29,6 +29,7 @@ mk_status_t wifi_diagnostics_start(void);
 mk_status_t wifi_diagnostics_stop(void);
 void wifi_diagnostics_task(void *context);
 void wifi_diagnostics_get_stats(wifi_diag_stats_t *out_stats);
+const mk_app_interface_t *wifi_diagnostics_get_interface(void);
 
 #ifdef __cplusplus
 }

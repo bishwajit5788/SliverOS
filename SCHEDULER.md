@@ -1,12 +1,41 @@
 # Cooperative Scheduler Specification
 
-## Architectural Classification
+## 1. Architectural Authority & The Single-Context Invariant
 
-The MicroKernel OS scheduler is a **deterministic, non-preemptive cooperative executive** running within a single FreeRTOS thread context on ESP-IDF.
+> [!IMPORTANT]
+> **Strict Prohibition of Per-Application FreeRTOS Tasks**
+> 
+> The MicroKernel OS cooperative scheduler is the **sole application execution authority**:
+> - There is **NO** FreeRTOS task per application.
+> - There is **NO** FreeRTOS task per kernel component.
+> - There is **NO** hidden RTOS scheduling replacing the custom scheduler.
+> 
+> **Execution Hierarchy**:
+> ```text
+> ESP-IDF Startup (ROM Bootloader)
+>             │
+>             ▼
+>   Single FreeRTOS Thread Context (`app_main`)
+>             │
+>             ▼
+>   `mk_kernel_boot()` ──► `mk_kernel_init()` ──► `mk_scheduler_init()`
+>             │
+>             ▼
+>   `mk_kernel_run()`
+>             │
+>             ▼
+>   Custom Cooperative Scheduler Loop (Owns all 4 applications)
+>   ├── Task 0: UI Runtime / App Launcher (Prio 2, Period 3)
+>   ├── Task 1: BLE-HID Macro Parser      (Prio 3, Period 1)
+>   ├── Task 2: Wi-Fi Diagnostics         (Prio 4, Period 5)
+>   ├── Task 3: Network Diagnostics       (Prio 6, Period 10)
+>   └── Task 4: Retro Games Micro-Lander  (Prio 7, Period 2)
+> ```
+> FreeRTOS remains underneath ESP-IDF exclusively to host core platform drivers (Wi-Fi PHY, NimBLE controller, TWDT). Applications live and execute entirely inside the custom cooperative scheduler.
 
 ---
 
-## 3-Tier Scheduling Arbitration Algorithm
+## 2. 3-Tier Scheduling Arbitration Algorithm
 
 ```text
                ┌────────────────────────┐
@@ -32,7 +61,7 @@ The MicroKernel OS scheduler is a **deterministic, non-preemptive cooperative ex
 
 ---
 
-## Task Control Block (TCB) Structure & Metrics
+## 3. Task Control Block (TCB) Structure & Metrics
 
 Every task is allocated in Internal SRAM with microsecond-level telemetry:
 
@@ -64,9 +93,9 @@ typedef struct {
 
 ---
 
-## Critical Distinction: Detection vs Preemption
+## 4. Critical Distinction: Detection vs Preemption
 
-> [!IMPORTANT]
+> [!CAUTION]
 > **Cooperative Reality: Detection $\ne$ Preemption**
 > 
 > Because this is a cooperative scheduler, the kernel cannot forcibly preempt a task while it is executing inside its C function call.
@@ -76,7 +105,7 @@ typedef struct {
 
 ---
 
-## Idle Behavior
+## 5. Idle Behavior
 
 When no tasks are eligible to run (e.g. all tasks are sleeping awaiting their next period):
 1. The scheduler invokes `hal_timer_delay_ms(1)`.

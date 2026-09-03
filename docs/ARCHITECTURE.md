@@ -92,3 +92,21 @@ Append records use a trailing 4-byte commit marker (`0x55AA55AA`) written only a
 
 ### Graphical OS Runtime (`os/ui/`)
 Replaces the traditional text shell with a visual application launcher and real-time developer diagnostics screen displaying kernel state, memory metrics, task execution times, radio telemetry, and display FPS.
+
+---
+
+## 5. Architecture Freeze Invariants
+
+```text
+================================================================================
+ARCHITECTURE REVISION: REV-20260904-S3-FROZEN
+================================================================================
+1. PRIMARY SILICON: ESP32-S3-DevKitC-1 (8MB Flash, 8MB PSRAM, Native USB).
+2. SCHEDULER: Custom cooperative scheduler is sole application authority (NO per-app FreeRTOS tasks).
+3. APPLICATIONS: Exactly four isolated applications (BLE_HID, WIFI_DIAG, NET_DIAG, RETRO_GAMES).
+4. MEMORY SEPARATION: Critical structures in Internal SRAM BSS; PSRAM for framebuffers/assets.
+5. STORAGE: Power-loss safe records over osfs with 0x55AA55AA commit markers.
+6. INTERRUPTS: Minimal ISRs posting to 64-slot static event bus.
+7. FLASHER SECURITY: SHA-256 integrity + test-fixture rejection in production mode.
+================================================================================
+```

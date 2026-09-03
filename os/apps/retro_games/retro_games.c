@@ -9,6 +9,7 @@
 #include "kernel.h"
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 #define LANDING_PAD_X       50
 #define LANDING_PAD_Y       60
@@ -147,4 +148,32 @@ void retro_games_get_lander(game_lander_t *out_lander)
     if (out_lander != NULL) {
         *out_lander = s_lander;
     }
+}
+
+mk_status_t retro_games_reset(void)
+{
+    reset_lander();
+    s_lander.score = 0;
+    return MK_STATUS_OK;
+}
+
+static void retro_games_handle_event(const mk_event_t *event)
+{
+    (void)event;
+}
+
+static const mk_app_interface_t s_retro_games_interface = {
+    .id = MK_APP_RETRO_GAMES,
+    .name = "RETRO_GAMES",
+    .init = retro_games_init,
+    .start = retro_games_start,
+    .tick = retro_games_task,
+    .handle_event = retro_games_handle_event,
+    .stop = retro_games_stop,
+    .reset = retro_games_reset
+};
+
+const mk_app_interface_t *retro_games_get_interface(void)
+{
+    return &s_retro_games_interface;
 }

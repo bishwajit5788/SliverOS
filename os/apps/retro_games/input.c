@@ -10,7 +10,7 @@
 
 mk_status_t input_init(void)
 {
-    /* HAL GPIO initialization already sets up button pin modes */
+    (void)hal_gpio_init();
     return MK_STATUS_OK;
 }
 

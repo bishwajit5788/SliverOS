@@ -130,3 +130,29 @@ void ble_hid_task(void *context)
             break;
     }
 }
+
+static void ble_hid_handle_event(const mk_event_t *event)
+{
+    if (event == NULL) return;
+    if (event->type == MK_EVENT_BLE_CONNECTED) {
+        s_state = BLE_APP_STATE_OPEN_FILE;
+    } else if (event->type == MK_EVENT_BLE_DISCONNECTED) {
+        s_state = BLE_APP_STATE_WAIT_CONNECTION;
+    }
+}
+
+static const mk_app_interface_t s_ble_hid_interface = {
+    .id = MK_APP_BLE_HID,
+    .name = "BLE_HID",
+    .init = ble_hid_init,
+    .start = ble_hid_start,
+    .tick = ble_hid_task,
+    .handle_event = ble_hid_handle_event,
+    .stop = ble_hid_stop,
+    .reset = ble_hid_init
+};
+
+const mk_app_interface_t *ble_hid_get_interface(void)
+{
+    return &s_ble_hid_interface;
+}
