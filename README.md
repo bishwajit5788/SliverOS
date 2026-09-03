@@ -26,7 +26,7 @@ The host computer is optional; SliverOS must not depend on a desktop OS to boot 
 
 ## 🏗️ System Design
 
-GitHub renders Mermaid diagrams directly in Markdown, making the architecture easy to keep alongside the code and documentation. citeturn0search4
+GitHub supports Mermaid diagrams directly in Markdown, so the architecture can remain version-controlled alongside the implementation.
 
 ```mermaid
 flowchart TB
@@ -139,7 +139,7 @@ ESP32-S3
     └── OSFS storage partition
 ```
 
-Memory placement is treated as an implementation invariant and should be verified from the linker/map output rather than inferred only from source declarations.
+Memory placement is treated as an implementation invariant and should be verified from linker/map output rather than inferred only from source declarations.
 
 ---
 
