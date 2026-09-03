@@ -2,7 +2,6 @@
  * @file memory_manager.c
  * @brief Deterministic 128KB static arena allocator in internal SRAM.
  */
-
 #include "memory_manager.h"
 #include "fault_manager.h"
 #include <string.h>
@@ -13,11 +12,11 @@
 #define MK_INTERNAL_DRAM
 #endif
 
-#define MK_BLOCK_MAGIC_ALLOC    0x55AA55AAU
-#define MK_BLOCK_MAGIC_FREE     0xAA55AA55U
-#define MK_ALIGNMENT            8U
-#define MK_ALIGN(x)             (((x) + (MK_ALIGNMENT - 1U)) & ~(MK_ALIGNMENT - 1U))
-#define MK_MIN_PAYLOAD          8U
+#define MK_BLOCK_MAGIC_ALLOC 0x55AA55AAU
+#define MK_BLOCK_MAGIC_FREE  0xAA55AA55U
+#define MK_ALIGNMENT 8U
+#define MK_ALIGN(x) (((x) + (MK_ALIGNMENT - 1U)) & ~(MK_ALIGNMENT - 1U))
+#define MK_MIN_PAYLOAD 8U
 
 typedef struct mk_mem_block {
     uint32_t magic;
@@ -29,10 +28,7 @@ typedef struct mk_mem_block {
 } mk_mem_block_t;
 
 _Static_assert(sizeof(mk_mem_block_t) % MK_ALIGNMENT == 0, "Header must be multiple of 8 bytes");
-
-/* Explicitly place the fixed arena in ESP-IDF internal DRAM. */
 static MK_INTERNAL_DRAM uint8_t s_arena_buffer[MK_ARENA_SIZE] __attribute__((aligned(MK_ALIGNMENT)));
-
 static mk_mem_block_t *s_head_block = NULL;
 static bool s_initialized = false;
 static mk_mem_stats_t s_stats;
@@ -41,7 +37,6 @@ mk_status_t mk_memory_init(void)
 {
     memset(&s_stats, 0, sizeof(s_stats));
     s_stats.total_capacity = MK_ARENA_SIZE - sizeof(mk_mem_block_t);
-
     s_head_block = (mk_mem_block_t *)(void *)s_arena_buffer;
     s_head_block->magic = MK_BLOCK_MAGIC_FREE;
     s_head_block->size = (uint32_t)(MK_ARENA_SIZE - sizeof(mk_mem_block_t));
@@ -76,7 +71,8 @@ void *my_malloc(size_t size)
         }
         if (curr->is_free && curr->size >= aligned_size) {
             const size_t excess = curr->size - aligned_size;
-            if (excess >= (sizeof(mk_mem_block_t) + MK_MIN_PAYLOAD)) {
+            const bool split = excess >= (sizeof(mk_mem_block_t) + MK_MIN_PAYLOAD);
+            if (split) {
                 uint8_t *split_addr = (uint8_t *)curr + sizeof(mk_mem_block_t) + aligned_size;
                 mk_mem_block_t *new_block = (mk_mem_block_t *)(void *)split_addr;
                 new_block->magic = MK_BLOCK_MAGIC_FREE;
@@ -92,7 +88,13 @@ void *my_malloc(size_t size)
             curr->magic = MK_BLOCK_MAGIC_ALLOC;
             curr->is_free = 0U;
             s_stats.used_bytes += curr->size;
-            if (s_stats.free_bytes >= curr->size) s_stats.free_bytes -= curr->size;
+            if (split) {
+                if (s_stats.free_bytes >= curr->size + sizeof(mk_mem_block_t)) s_stats.free_bytes -= curr->size + sizeof(mk_mem_block_t);
+                else s_stats.free_bytes = 0U;
+            } else {
+                if (s_stats.free_bytes >= curr->size) s_stats.free_bytes -= curr->size;
+                else s_stats.free_bytes = 0U;
+            }
             if (s_stats.used_bytes > s_stats.peak_used_bytes) s_stats.peak_used_bytes = s_stats.used_bytes;
             s_stats.allocation_count++;
             return (void *)((uint8_t *)curr + sizeof(mk_mem_block_t));
@@ -129,7 +131,7 @@ void my_free(void *ptr)
     }
     block->magic = MK_BLOCK_MAGIC_FREE;
     block->is_free = 1U;
-    if (s_stats.used_bytes >= block->size) s_stats.used_bytes -= block->size;
+    if (s_stats.used_bytes >= block->size) s_stats.used_bytes -= block->size; else s_stats.used_bytes = 0U;
     s_stats.free_bytes += block->size;
     s_stats.free_count++;
     if (block->next != NULL && block->next->is_free != 0U) {
