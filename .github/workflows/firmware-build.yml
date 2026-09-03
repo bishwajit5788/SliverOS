@@ -28,7 +28,6 @@ jobs:
           test -f build/partition_table/partition-table.bin
           test -f build/microkernel-esp32.bin
           test -f build/microkernel-esp32.map
-
           APP_SIZE=$(stat -c%s build/microkernel-esp32.bin)
           OTA_SLOT=$((0x280000))
           HEADROOM=$((OTA_SLOT - APP_SIZE))
@@ -40,15 +39,16 @@ jobs:
             exit 1
           fi
 
-          echo "Checking explicit internal-DRAM ownership markers..."
+          echo "Checking internal-DRAM source markers..."
           grep -q 'static MK_INTERNAL_DRAM mk_kernel_t s_kernel' os/kernel/kernel.c
           grep -q 'static MK_INTERNAL_DRAM uint8_t s_arena_buffer' os/kernel/memory_manager.c
           grep -q 'static MK_INTERNAL_DRAM uint8_t s_pool_buf_0' os/kernel/memory_pool.c
           grep -q 'static MK_INTERNAL_DRAM uint8_t s_pool_buf_4' os/kernel/memory_pool.c
 
+          python3 tools/check_memory_layout.py build/microkernel-esp32.map
+
           echo "Checking partition table bounds..."
           python3 - <<'PY'
-          import re
           from pathlib import Path
           rows = []
           for line in Path('partitions.csv').read_text().splitlines():
@@ -58,9 +58,7 @@ jobs:
               fields = [x.strip() for x in line.split(',')]
               if len(fields) < 5:
                   continue
-              off = int(fields[3], 0)
-              size = int(fields[4], 0)
-              rows.append((fields[0], off, size))
+              rows.append((fields[0], int(fields[3], 0), int(fields[4], 0)))
           for name, off, size in rows:
               assert off + size <= 0x800000, f'{name} exceeds 8MiB flash'
           ota = {n: (o, s) for n, o, s in rows if n in ('ota_0', 'ota_1')}
@@ -69,4 +67,4 @@ jobs:
           print('Partition bounds and OTA slot sizes valid.')
           PY
 
-          echo "ESP32-S3 firmware artifacts, memory markers, and OTA sizing validated."
+          echo "ESP32-S3 firmware artifacts, linker placement, and OTA sizing validated."
