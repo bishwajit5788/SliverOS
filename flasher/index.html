@@ -3,133 +3,154 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MicroKernel OS — Web Serial Flasher</title>
+  <meta name="theme-color" content="#080b12">
+  <meta name="description" content="Install SliverOS on your ESP32-S3 directly from your browser.">
+  <title>SliverOS — ESP32-S3 Installer</title>
   <link rel="stylesheet" href="./src/styles.css">
 </head>
 <body>
-  <div class="app-container">
-    <header class="app-header">
-      <div class="header-content">
-        <div class="header-branding">
-          <div class="logo-mark">μK</div>
-          <div>
-            <h1>MICROKERNEL OS FLASHER</h1>
-            <p class="subtitle">Direct-from-Browser ESP-IDF Firmware Installation Engine</p>
-          </div>
-        </div>
-        <div class="header-badges">
-          <span class="badge badge-platform">ESP-IDF v5.x</span>
-          <span class="badge badge-version" id="appVersionBadge">v1.0.0</span>
-          <span class="badge badge-status" id="headerStatusBadge">DISCONNECTED</span>
-        </div>
+  <div class="ambient ambient-one"></div>
+  <div class="ambient ambient-two"></div>
+
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="SliverOS home">
+        <span class="brand-mark"><span></span><span></span><span></span></span>
+        <span class="brand-copy">
+          <strong>SliverOS</strong>
+          <small>ESP32-S3 Installer</small>
+        </span>
+      </a>
+
+      <div class="topbar-right">
+        <span class="platform-pill"><i></i> ESP32-S3</span>
+        <span class="version-pill" id="appVersionBadge">v1.0.0</span>
+        <span class="status-pill" id="headerStatusBadge">DISCONNECTED</span>
       </div>
     </header>
 
-    <main class="main-content">
-      <!-- Top Grid: Device Info & Configuration -->
-      <section class="card device-card">
-        <div class="card-header">
-          <h2>ESP32 DEVICE HARDWARE</h2>
-          <div class="card-actions">
-            <button id="btnConnect" class="btn btn-primary">
-              <span class="btn-icon">⚡</span> CONNECT DEVICE
+    <main>
+      <section class="hero">
+        <div class="hero-copy">
+          <div class="eyebrow"><span class="eyebrow-dot"></span> Browser-based firmware installer</div>
+          <h1>Put SliverOS on your<br><span>ESP32-S3.</span></h1>
+          <p class="hero-text">No command line. No drivers to configure. Connect your board, let us identify it, and install SliverOS in a few guided steps.</p>
+
+          <div class="hero-actions">
+            <button id="btnConnect" class="btn btn-primary btn-hero">
+              <span class="btn-symbol">↗</span>
+              <span><b>Connect ESP32-S3</b><small>Use a USB data cable</small></span>
             </button>
-            <button id="btnDisconnect" class="btn btn-secondary" disabled>
-              DISCONNECT
-            </button>
+            <button id="btnDisconnect" class="btn btn-ghost" disabled>Disconnect</button>
+          </div>
+
+          <div class="compatibility">
+            <span class="check">✓</span>
+            <span>Designed for beginners</span>
+            <span class="dot-separator">•</span>
+            <span>Runs in Chrome / Edge</span>
+            <span class="dot-separator">•</span>
+            <span>USB only</span>
           </div>
         </div>
 
-        <div class="device-grid">
-          <div class="info-group">
-            <span class="info-label">Chip Family</span>
-            <span class="info-value" id="valChipFamily">—</span>
+        <div class="board-stage" aria-label="ESP32-S3 installation illustration">
+          <div class="stage-glow"></div>
+          <div class="orbit orbit-a"></div>
+          <div class="orbit orbit-b"></div>
+          <div class="board">
+            <div class="board-usb"></div>
+            <div class="board-chip"><span>ESP</span><strong>32-S3</strong></div>
+            <div class="board-pin pin-left p1"></div><div class="board-pin pin-left p2"></div><div class="board-pin pin-left p3"></div><div class="board-pin pin-left p4"></div>
+            <div class="board-pin pin-right p1"></div><div class="board-pin pin-right p2"></div><div class="board-pin pin-right p3"></div><div class="board-pin pin-right p4"></div>
+            <div class="board-led"></div>
+            <div class="board-button">BOOT</div>
+            <div class="board-label">SLIVEROS</div>
           </div>
-          <div class="info-group">
-            <span class="info-label">Silicon Revision</span>
-            <span class="info-value" id="valChipRev">—</span>
-          </div>
-          <div class="info-group">
-            <span class="info-label">Flash Capacity</span>
-            <span class="info-value" id="valFlashSize">—</span>
-          </div>
-          <div class="info-group">
-            <span class="info-label">MAC Address</span>
-            <span class="info-value" id="valMacAddress">—</span>
-          </div>
-          <div class="info-group">
-            <span class="info-label">Operating System Target</span>
-            <span class="info-value highlight" id="valTargetFirmware">Auto-detecting...</span>
-          </div>
-          <div class="info-group">
-            <span class="info-label">Link Baudrate</span>
-            <select id="selBaudrate" class="select-input">
-              <option value="115200">115,200 (Safe Bootloader)</option>
-              <option value="460800" selected>460,800 (High Speed)</option>
-              <option value="921600">921,600 (Ultra Fast)</option>
-            </select>
-          </div>
+          <div class="floating-tag tag-usb"><span class="tag-icon">⌁</span> USB Serial</div>
+          <div class="floating-tag tag-safe"><span>✓</span> Safe install</div>
         </div>
+      </section>
 
-        <div class="flashing-actions">
-          <button id="btnFlash" class="btn btn-success btn-large" disabled>
-            <span class="btn-icon">📥</span> INSTALL MICROKERNEL OS
+      <section class="steps" aria-label="Installation steps">
+        <div class="step active"><span>01</span><div><b>Connect</b><small>Plug in USB</small></div></div>
+        <div class="step-line"></div>
+        <div class="step"><span>02</span><div><b>Identify</b><small>Detect your board</small></div></div>
+        <div class="step-line"></div>
+        <div class="step"><span>03</span><div><b>Install</b><small>Flash SliverOS</small></div></div>
+        <div class="step-line"></div>
+        <div class="step"><span>04</span><div><b>Finish</b><small>Start using SliverOS</small></div></div>
+      </section>
+
+      <section class="installer-grid">
+        <div class="card device-card">
+          <div class="section-heading">
+            <div><span class="section-kicker">DEVICE</span><h2>Your ESP32-S3</h2></div>
+            <span class="mini-state" id="deviceState"><i></i> Waiting</span>
+          </div>
+
+          <div class="device-summary">
+            <div class="device-icon"><span>ESP</span><strong>32-S3</strong></div>
+            <div><strong id="valChipFamily">Not connected</strong><p id="safetyStatusText">Connect an ESP32-S3 using a USB data cable to begin.</p></div>
+          </div>
+
+          <div class="device-grid">
+            <div class="info-group"><span class="info-label">Chip family</span><span class="info-value" id="valChipRev">—</span></div>
+            <div class="info-group"><span class="info-label">Flash capacity</span><span class="info-value" id="valFlashSize">—</span></div>
+            <div class="info-group"><span class="info-label">Device address</span><span class="info-value" id="valMacAddress">—</span></div>
+            <div class="info-group"><span class="info-label">SliverOS target</span><span class="info-value highlight" id="valTargetFirmware">Waiting for device</span></div>
+          </div>
+
+          <details class="advanced-panel">
+            <summary>Advanced flashing options</summary>
+            <div class="advanced-content"><label>Serial baudrate <select id="selBaudrate" class="select-input"><option value="115200">115,200 — safest</option><option value="460800" selected>460,800 — recommended</option><option value="921600">921,600 — fastest</option></select></label><span>These options are safe to leave at their defaults.</span></div>
+          </details>
+
+          <button id="btnFlash" class="btn btn-install" disabled>
+            <span class="install-icon">↓</span><span><b>Install SliverOS</b><small>Erase, flash &amp; verify automatically</small></span><span class="arrow">→</span>
           </button>
-          <div class="safety-indicator" id="safetyStatusText">
-            Connect an ESP32, ESP32-C3, or ESP32-S3 via USB data cable to begin.
-          </div>
         </div>
+
+        <aside class="help-card">
+          <div class="help-icon">?</div>
+          <span class="section-kicker">FIRST TIME?</span>
+          <h3>It really is this simple.</h3>
+          <ol>
+            <li><span>1</span><p>Connect your ESP32-S3 with a <b>USB data cable</b>.</p></li>
+            <li><span>2</span><p>Click <b>Connect ESP32-S3</b> and select your device.</p></li>
+            <li><span>3</span><p>Click <b>Install SliverOS</b> and wait for verification.</p></li>
+          </ol>
+          <div class="help-note"><span>✦</span> Keep the board connected until installation finishes.</div>
+        </aside>
       </section>
 
-      <!-- Flashing Progress Section -->
       <section class="card progress-card" id="progressSection">
-        <div class="card-header">
-          <h2>FLASH TRANSFER METRICS</h2>
-          <div class="progress-stats" id="progressMetrics">
-            <span id="metricSpeed">0 KB/s</span>
-            <span class="separator">•</span>
-            <span id="metricTransferred">0 / 0 KB</span>
-            <span class="separator">•</span>
-            <span id="metricEta">ETA: —</span>
-          </div>
+        <div class="section-heading">
+          <div><span class="section-kicker">INSTALLATION</span><h2>Flashing progress</h2></div>
+          <div class="progress-stats" id="progressMetrics"><span id="metricSpeed">0 KB/s</span><span>•</span><span id="metricTransferred">0 / 0 KB</span><span>•</span><span id="metricEta">ETA —</span></div>
         </div>
-
-        <div class="progress-container">
-          <div class="progress-label-row">
-            <span class="progress-step-title" id="lblOverallStep">Overall Progress</span>
-            <span class="progress-pct" id="lblOverallPct">0%</span>
-          </div>
-          <div class="progress-bar-wrapper">
-            <div class="progress-bar-fill" id="barOverall" style="width: 0%;"></div>
-          </div>
+        <div class="progress-main">
+          <div class="progress-label-row"><span id="lblOverallStep">Ready when you are</span><strong id="lblOverallPct">0%</strong></div>
+          <div class="progress-track"><div class="progress-bar-fill" id="barOverall" style="width:0%"></div></div>
         </div>
-
-        <div class="image-progress-list" id="imageProgressContainer">
-          <!-- Dynamically populated per image item -->
-        </div>
+        <div class="image-progress-list" id="imageProgressContainer"></div>
       </section>
 
-      <!-- Developer Console Section -->
       <section class="card console-card">
-        <div class="card-header">
-          <h2>DEVELOPER CONSOLE</h2>
+        <div class="section-heading console-heading">
+          <div><span class="section-kicker">DEVELOPER MODE</span><h2>Installation console</h2></div>
           <div class="console-actions">
-            <div class="filter-group">
-              <button class="btn-filter active" data-filter="ALL">ALL</button>
-              <button class="btn-filter" data-filter="INFO">INFO</button>
-              <button class="btn-filter" data-filter="WARN">WARN</button>
-              <button class="btn-filter" data-filter="ERROR">ERROR</button>
-              <button class="btn-filter" data-filter="DEBUG">DEBUG</button>
-            </div>
-            <button id="btnClearConsole" class="btn btn-small btn-secondary">CLEAR</button>
+            <div class="filter-group"><button class="btn-filter active" data-filter="ALL">ALL</button><button class="btn-filter" data-filter="INFO">INFO</button><button class="btn-filter" data-filter="WARN">WARN</button><button class="btn-filter" data-filter="ERROR">ERROR</button><button class="btn-filter" data-filter="DEBUG">DEBUG</button></div>
+            <button id="btnClearConsole" class="btn btn-small btn-ghost">Clear</button>
           </div>
         </div>
-        <div class="console-output" id="consoleOutput" role="log"></div>
+        <div class="console-output" id="consoleOutput" role="log" aria-label="Installation console"></div>
       </section>
     </main>
 
-    <footer class="app-footer">
-      <div>MicroKernel OS Embedded Executive • Architecture Compliant • C11 Executive &amp; Web Serial Flasher</div>
+    <footer class="footer">
+      <div><span class="footer-logo">S</span><b>SliverOS</b><span>Custom cooperative embedded OS executive</span></div>
+      <div><span>ESP32-S3</span><span>•</span><span>Web Serial</span><span>•</span><span>SHA-256 verified firmware</span></div>
     </footer>
   </div>
 
