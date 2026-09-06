@@ -42,17 +42,32 @@ void test_scheduler(void)
     mk_scheduler_run_iteration(&kernel);
     assert(s_runs[0] == 1U && s_runs[1] == 0U && s_runs[2] == 0U);
 
-    /* Periodic task becomes sleeping after execution and wakes exactly at deadline. */
+    /* The highest-priority ready task remains eligible until it voluntarily sleeps. */
     mk_scheduler_run_iteration(&kernel);
-    assert(s_runs[2] == 1U || s_runs[1] == 0U);
-    assert(kernel.tasks[1].state == MK_TASK_STATE_READY);
+    assert(s_runs[0] == 2U && s_runs[1] == 0U && s_runs[2] == 0U);
+
+    /* Once the highest-priority task sleeps, the next eligible priority must win. */
     kernel.tasks[0].state = MK_TASK_STATE_SLEEPING;
     kernel.tasks[0].next_run_tick = kernel.tick + 2U;
-    assert(mk_scheduler_select_next(&kernel)->id == 2U);
+    assert(mk_scheduler_select_next(&kernel)->id == 1U);
+
+    /* Periodic task becomes sleeping after execution and wakes exactly at deadline. */
+    mk_scheduler_run_iteration(&kernel);
+    assert(s_runs[1] == 1U);
+    assert(kernel.tasks[1].state == MK_TASK_STATE_SLEEPING);
+    const uint32_t periodic_deadline = kernel.tasks[1].next_run_tick;
+    assert(periodic_deadline == kernel.tick + 5U);
+    for (uint32_t i = 0U; i < 4U; ++i) {
+        mk_scheduler_tick(&kernel);
+        assert(kernel.tasks[1].state == MK_TASK_STATE_SLEEPING);
+    }
     mk_scheduler_tick(&kernel);
-    assert(kernel.tasks[0].state == MK_TASK_STATE_SLEEPING);
-    mk_scheduler_tick(&kernel);
-    assert(kernel.tasks[0].state == MK_TASK_STATE_READY);
+    assert(kernel.tasks[1].state == MK_TASK_STATE_READY);
+    assert(mk_scheduler_select_next(&kernel)->id == 1U);
+
+    /* Restore the high-priority task and verify it wins over lower priorities. */
+    kernel.tasks[0].state = MK_TASK_STATE_READY;
+    kernel.tasks[0].next_run_tick = kernel.tick;
     assert(mk_scheduler_select_next(&kernel)->id == 0U);
 
     /* Equal-priority ready tasks must rotate without starvation. */
@@ -60,6 +75,9 @@ void test_scheduler(void)
     kernel.tick = 100U;
     assert(mk_task_register(&kernel, 3U, "rr_a", dummy_task, (void *)(uintptr_t)3U, 2U, 0U) == MK_STATUS_OK);
     assert(mk_task_register(&kernel, 4U, "rr_b", dummy_task, (void *)(uintptr_t)4U, 2U, 0U) == MK_STATUS_OK);
+    kernel.tasks[0].state = MK_TASK_STATE_SLEEPING;
+    kernel.tasks[1].state = MK_TASK_STATE_SLEEPING;
+    kernel.tasks[2].state = MK_TASK_STATE_SLEEPING;
     mk_tcb_t *first = mk_scheduler_select_next(&kernel);
     assert(first != NULL && (first->id == 3U || first->id == 4U));
     const uint8_t first_id = first->id;
@@ -70,9 +88,6 @@ void test_scheduler(void)
     assert(s_runs[3] == 1U && s_runs[4] == 1U);
 
     /* No runnable task: iteration must not mutate task execution counts. */
-    kernel.tasks[0].state = MK_TASK_STATE_SLEEPING;
-    kernel.tasks[1].state = MK_TASK_STATE_SLEEPING;
-    kernel.tasks[2].state = MK_TASK_STATE_SLEEPING;
     kernel.tasks[3].state = MK_TASK_STATE_SLEEPING;
     kernel.tasks[4].state = MK_TASK_STATE_SLEEPING;
     const uint32_t before = kernel.scheduler_iterations;
