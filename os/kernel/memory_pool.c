@@ -6,6 +6,7 @@
 #include "memory_pool.h"
 #include "fault_manager.h"
 #include <string.h>
+#include <stdint.h>
 #if defined(ESP_PLATFORM)
 #include "esp_attr.h"
 #define MK_INTERNAL_DRAM DRAM_ATTR
@@ -16,7 +17,7 @@
 #define MK_POOL_MAGIC_ALLOC 0x504F4F4CU
 #define MK_POOL_MAGIC_FREE  0x46524545U
 
-typedef struct mk_pool_node {
+typedef struct __attribute__((aligned(8))) mk_pool_node {
     uint32_t magic;
     uint8_t class_idx;
     uint8_t in_use;
@@ -25,6 +26,7 @@ typedef struct mk_pool_node {
 } mk_pool_node_t;
 
 _Static_assert(sizeof(mk_pool_node_t) % 8 == 0, "Pool node header must be 8-byte aligned");
+_Static_assert(_Alignof(mk_pool_node_t) >= 8, "Pool node alignment must be at least 8 bytes");
 
 static const size_t s_block_sizes[MK_POOL_CLASSES_COUNT] = { 16U, 32U, 64U, 128U, 256U };
 #define MK_POOL_0_COUNT 32U
@@ -78,10 +80,10 @@ mk_status_t mk_pool_init(void)
 void *mk_pool_alloc(size_t size)
 {
     if (!s_initialized && mk_pool_init() != MK_STATUS_OK) return NULL;
-    if (size == 0 || size > s_block_sizes[MK_POOL_CLASSES_COUNT - 1]) return NULL;
+    if (size == 0U || size > s_block_sizes[MK_POOL_CLASSES_COUNT - 1U]) return NULL;
     int target_class = -1;
     for (uint8_t c = 0; c < MK_POOL_CLASSES_COUNT; c++) {
-        if (size <= s_block_sizes[c]) { target_class = c; break; }
+        if (size <= s_block_sizes[c]) { target_class = (int)c; break; }
     }
     if (target_class < 0) return NULL;
     mk_pool_node_t *node = s_free_heads[target_class];
@@ -106,19 +108,19 @@ void mk_pool_free(void *ptr)
     if (ptr == NULL || !s_initialized) return;
     mk_pool_node_t *node = (mk_pool_node_t *)(void *)((uint8_t *)ptr - sizeof(mk_pool_node_t));
     if (node->magic != MK_POOL_MAGIC_ALLOC || node->in_use != 1U) {
-        mk_fault_record_full(MK_FAULT_MEMORY_DOUBLE_FREE, MK_FAULT_SRC_MEMORY, MK_FAULT_SEV_WARNING, 0xBAD10001, (uint32_t)(uintptr_t)ptr);
+        mk_fault_record_full(MK_FAULT_MEMORY_DOUBLE_FREE, MK_FAULT_SRC_MEMORY, MK_FAULT_SEV_WARNING, 0xBAD10001U, (uint32_t)(uintptr_t)ptr);
         return;
     }
     const uint8_t c = node->class_idx;
     if (c >= MK_POOL_CLASSES_COUNT) {
-        mk_fault_record_full(MK_FAULT_MEMORY_CORRUPTION, MK_FAULT_SRC_MEMORY, MK_FAULT_SEV_CRITICAL, 0xBAD10002, 0);
+        mk_fault_record_full(MK_FAULT_MEMORY_CORRUPTION, MK_FAULT_SRC_MEMORY, MK_FAULT_SEV_CRITICAL, 0xBAD10002U, 0U);
         return;
     }
     node->magic = MK_POOL_MAGIC_FREE;
     node->in_use = 0U;
     node->next_free = s_free_heads[c];
     s_free_heads[c] = node;
-    if (s_stats.classes[c].allocated_blocks > 0) s_stats.classes[c].allocated_blocks--;
+    if (s_stats.classes[c].allocated_blocks > 0U) s_stats.classes[c].allocated_blocks--;
     if (s_stats.total_used_bytes >= s_block_sizes[c]) s_stats.total_used_bytes -= s_block_sizes[c];
 }
 
