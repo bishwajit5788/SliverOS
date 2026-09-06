@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [ main, master ]
 
+permissions:
+  contents: write
+
 jobs:
   build-firmware:
     runs-on: ubuntu-latest
@@ -39,7 +42,6 @@ jobs:
             exit 1
           fi
 
-          echo "Checking internal-DRAM source markers..."
           grep -q 'static MK_INTERNAL_DRAM mk_kernel_t s_kernel' os/kernel/kernel.c
           grep -q 'static MK_INTERNAL_DRAM uint8_t s_arena_buffer' os/kernel/memory_manager.c
           grep -q 'static MK_INTERNAL_DRAM uint8_t s_pool_buf_0' os/kernel/memory_pool.c
@@ -47,7 +49,6 @@ jobs:
 
           python3 tools/check_memory_layout.py build/microkernel-esp32.map
 
-          echo "Checking partition table bounds..."
           python3 - <<'PY'
           from pathlib import Path
           rows = []
@@ -64,7 +65,36 @@ jobs:
           ota = {n: (o, s) for n, o, s in rows if n in ('ota_0', 'ota_1')}
           assert ota.get('ota_0', (0, 0))[1] == 0x280000
           assert ota.get('ota_1', (0, 0))[1] == 0x280000
+          assert ota.get('ota_0', (0, 0))[0] == 0x20000
+          assert ota.get('ota_1', (0, 0))[0] == 0x2A0000
           print('Partition bounds and OTA slot sizes valid.')
           PY
 
-          echo "ESP32-S3 firmware artifacts, linker placement, and OTA sizing validated."
+          mkdir -p release
+          cp build/bootloader/bootloader.bin release/bootloader.bin
+          cp build/partition_table/partition-table.bin release/partition-table.bin
+          cp build/microkernel-esp32.bin release/microkernel-esp32.bin
+          if [ -f build/ota_data_initial.bin ]; then cp build/ota_data_initial.bin release/ota_data_initial.bin; fi
+          if [ -f build/phy_init_data.bin ]; then cp build/phy_init_data.bin release/phy_init_data.bin; fi
+          sha256sum release/* > release/SHA256SUMS.txt
+
+      - name: Upload CI firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sliveros-esp32s3-firmware-${{ github.sha }}
+          path: release/
+          if-no-files-found: error
+
+      - name: Publish public firmware release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="v0.1.${GITHUB_RUN_NUMBER}"
+          gh release create "${TAG}" release/* \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "SliverOS ${TAG}" \
+            --notes "Automated ESP32-S3 firmware release built from ${GITHUB_SHA}. SHA-256 digests are supplied by GitHub release assets." \
+            --target "${GITHUB_SHA}"
