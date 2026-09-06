@@ -31,7 +31,8 @@ mk_status_t mk_scheduler_init(mk_kernel_t *kernel)
     for (uint8_t i = 0U; i < MK_MAX_TASKS; ++i) {
         mk_tcb_t *tcb = &kernel->tasks[i];
         memset(tcb, 0, sizeof(*tcb));
-        tcb->id = i; tcb->state = MK_TASK_STATE_UNUSED;
+        tcb->id = i;
+        tcb->state = MK_TASK_STATE_UNUSED;
         tcb->priority = MK_TASK_PRIO_LOWEST;
         tcb->max_execution_us = MK_TASK_EXEC_BUDGET_US;
     }
@@ -51,18 +52,26 @@ mk_status_t mk_task_register(mk_kernel_t *kernel, uint8_t task_id, const char *n
         return MK_STATUS_INVALID_ARG;
     }
     mk_tcb_t *tcb = &kernel->tasks[task_id];
-    tcb->id = task_id; tcb->state = MK_TASK_STATE_READY;
+    tcb->id = task_id;
+    tcb->state = MK_TASK_STATE_READY;
     tcb->priority = (priority > MK_TASK_PRIO_LOWEST) ? MK_TASK_PRIO_LOWEST : priority;
-    tcb->period_ticks = period_ticks; tcb->next_run_tick = kernel->tick;
-    tcb->entry = entry; tcb->context = context;
-    tcb->execution_count = 0U; tcb->fault_count = 0U;
-    tcb->last_execution_us = 0U; tcb->worst_execution_us = 0U;
+    tcb->period_ticks = period_ticks;
+    tcb->next_run_tick = kernel->tick;
+    tcb->entry = entry;
+    tcb->context = context;
+    tcb->execution_count = 0U;
+    tcb->fault_count = 0U;
+    tcb->last_execution_us = 0U;
+    tcb->worst_execution_us = 0U;
     tcb->max_execution_us = MK_TASK_EXEC_BUDGET_US;
-    tcb->deadline_miss_count = 0U; tcb->overrun_count = 0U;
+    tcb->deadline_miss_count = 0U;
+    tcb->overrun_count = 0U;
     if (name != NULL) {
         strncpy(tcb->name, name, MK_TASK_NAME_LEN - 1U);
         tcb->name[MK_TASK_NAME_LEN - 1U] = '\0';
-    } else snprintf(tcb->name, sizeof(tcb->name), "task_%u", task_id);
+    } else {
+        snprintf(tcb->name, sizeof(tcb->name), "task_%u", task_id);
+    }
     return MK_STATUS_OK;
 }
 
@@ -88,18 +97,25 @@ void mk_scheduler_tick(mk_kernel_t *kernel)
 mk_tcb_t *mk_scheduler_select_next(mk_kernel_t *kernel)
 {
     if (kernel == NULL) return NULL;
-    uint8_t best = 255U;
+
+    uint8_t best_priority = MK_TASK_PRIO_LOWEST + 1U;
     for (uint8_t i = 0U; i < MK_MAX_TASKS; ++i) {
-        mk_tcb_t *tcb = &kernel->tasks[i];
-        if (tcb->state == MK_TASK_STATE_READY && kernel->tick >= tcb->next_run_tick && tcb->priority < best)
-            best = tcb->priority;
+        const mk_tcb_t *tcb = &kernel->tasks[i];
+        if (tcb->state == MK_TASK_STATE_READY && kernel->tick >= tcb->next_run_tick &&
+            tcb->priority < best_priority) {
+            best_priority = tcb->priority;
+        }
     }
-    if (best == 255U) return NULL;
+    if (best_priority > MK_TASK_PRIO_LOWEST) return NULL;
+
+    /* The cursor is a fairness hint for equal-priority runnable tasks. A newly
+     * selected task is not made ineligible merely because another select call
+     * occurs before execution; the run iteration owns the cursor advancement. */
     for (uint8_t off = 0U; off < MK_MAX_TASKS; ++off) {
-        uint8_t idx = (uint8_t)((s_rr_cursor + off) % MK_MAX_TASKS);
+        const uint8_t idx = (uint8_t)((s_rr_cursor + off) % MK_MAX_TASKS);
         mk_tcb_t *candidate = &kernel->tasks[idx];
-        if (candidate->state == MK_TASK_STATE_READY && kernel->tick >= candidate->next_run_tick && candidate->priority == best) {
-            s_rr_cursor = (uint8_t)((idx + 1U) % MK_MAX_TASKS);
+        if (candidate->state == MK_TASK_STATE_READY && kernel->tick >= candidate->next_run_tick &&
+            candidate->priority == best_priority) {
             return candidate;
         }
     }
@@ -115,6 +131,7 @@ void mk_scheduler_run_iteration(mk_kernel_t *kernel)
 #endif
     mk_tcb_t *tcb = mk_scheduler_select_next(kernel);
     if (tcb != NULL && tcb->entry != NULL) {
+        const uint8_t selected_id = tcb->id;
         if (kernel->tick > tcb->next_run_tick) tcb->deadline_miss_count++;
         tcb->state = MK_TASK_STATE_RUNNING;
         const uint64_t start = hal_timer_get_us();
@@ -124,11 +141,18 @@ void mk_scheduler_run_iteration(mk_kernel_t *kernel)
         tcb->last_execution_us = duration;
         if (duration > tcb->worst_execution_us) tcb->worst_execution_us = duration;
         if (duration > tcb->max_execution_us) {
-            ++tcb->overrun_count; ++tcb->fault_count;
+            ++tcb->overrun_count;
+            ++tcb->fault_count;
             mk_fault_record_full(MK_FAULT_SCHEDULER_OVERRUN, MK_FAULT_SRC_SCHEDULER,
                                  MK_FAULT_SEV_WARNING, (uint32_t)tcb->id, duration);
         }
         ++tcb->execution_count;
+
+        /* Advance fairness only after the selected task actually executes.
+         * The cursor moves past the current slot, while the same high-priority
+         * task remains the winner when no equal-priority peer is runnable. */
+        s_rr_cursor = (uint8_t)((selected_id + 1U) % MK_MAX_TASKS);
+
         if (tcb->state == MK_TASK_STATE_RUNNING) {
             if (tcb->period_ticks > 0U) {
                 tcb->next_run_tick = kernel->tick + tcb->period_ticks;
