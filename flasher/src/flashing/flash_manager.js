@@ -1,7 +1,6 @@
 /**
  * flash_manager.js
- * Master flashing engine orchestrating safety validation, block writing,
- * real-time transfer telemetry, and post-flash hardware verification.
+ * Flashing orchestration built on Espressif's official esptool-js ROM client.
  */
 
 export class FlashManager {
@@ -12,80 +11,67 @@ export class FlashManager {
     this.isFlashing = false;
   }
 
-  async flash(images, targetChip) {
-    if (this.isFlashing) {
-      throw new Error('Flash operation already in progress.');
-    }
-    if (!images || images.length === 0) {
-      throw new Error('No images specified for flashing.');
+  async flash(images, targetChip, targetConfig = {}) {
+    if (this.isFlashing) throw new Error('Flash operation already in progress.');
+    if (!this.loader || !Array.isArray(images) || images.length === 0) {
+      throw new Error('No valid firmware images are available for flashing.');
     }
 
     this.isFlashing = true;
-    const totalBytes = images.reduce((sum, img) => sum + img.size, 0);
-    let bytesTransferred = 0;
-    const startTime = Date.now();
-
-    this.log(`[INFO] Starting flash sequence: ${images.length} images, total ${totalBytes} bytes`);
-
     try {
-      for (let imgIdx = 0; imgIdx < images.length; imgIdx++) {
-        const img = images[imgIdx];
-        this.log(`[INFO] Writing image [${imgIdx + 1}/${images.length}]: ${img.name} to 0x${img.offset.toString(16)} (${img.size} bytes)...`);
+      const totalBytes = images.reduce((sum, image) => sum + image.size, 0);
+      let transferred = 0;
 
-        const blockSize = 4096;
-        const totalBlocks = Math.ceil(img.size / blockSize);
+      this.log(`[INFO] Preparing ${images.length} verified firmware image(s) for ${targetChip.family}.`);
 
-        // Flash begin (erases required sectors in hardware)
-        await this.loader.flashBegin(img.size, img.offset, blockSize);
+      const fileArray = images.map((image) => ({
+        data: image.data,
+        address: image.offset
+      }));
 
-        let imgBytesWritten = 0;
-
-        for (let blockIdx = 0; blockIdx < totalBlocks; blockIdx++) {
-          const start = blockIdx * blockSize;
-          const end = Math.min(start + blockSize, img.size);
-          const chunk = img.data.subarray(start, end);
-
-          // Write chunk via bootloader protocol
-          await this.loader.flashData(chunk, blockIdx);
-
-          imgBytesWritten += chunk.length;
-          bytesTransferred += chunk.length;
-
-          const now = Date.now();
-          const elapsedSec = (now - startTime) / 1000;
-          const speedKBps = elapsedSec > 0 ? (bytesTransferred / 1024 / elapsedSec).toFixed(1) : 0;
-          const remainingBytes = totalBytes - bytesTransferred;
-          const remainingSec = speedKBps > 0 ? Math.ceil(remainingBytes / (speedKBps * 1024)) : 0;
-
-          const overallPct = Math.round((bytesTransferred / totalBytes) * 100);
-          const imagePct = Math.round((imgBytesWritten / img.size) * 100);
-
+      const flashOptions = {
+        fileArray,
+        flashMode: targetConfig.flash_mode || 'dio',
+        flashFreq: targetConfig.flash_freq || '40m',
+        flashSize: targetConfig.flash_size || 'detect',
+        eraseAll: targetConfig.erase_all === true,
+        compress: false,
+        reportProgress: (fileIndex, written, total) => {
+          const current = images[fileIndex];
+          const previousFiles = images.slice(0, fileIndex).reduce((sum, image) => sum + image.size, 0);
+          transferred = previousFiles + written;
+          const overallPct = totalBytes > 0 ? Math.round((transferred / totalBytes) * 100) : 0;
+          const imagePct = total > 0 ? Math.round((written / total) * 100) : 0;
           this.onProgress({
             overallPct,
             imagePct,
-            imageIndex: imgIdx,
-            imageName: img.name,
-            bytesTransferred,
+            imageIndex: fileIndex,
+            imageName: current?.name || `image-${fileIndex + 1}`,
+            bytesTransferred: transferred,
             totalBytes,
-            speedKBps,
-            remainingSec
+            speedKBps: 0,
+            remainingSec: 0
           });
         }
+      };
 
-        // Finalize flash for current image
-        await this.loader.flashEnd(false);
+      this.log('[INFO] Writing firmware using Espressif ROM flashing protocol...');
+      await this.loader.writeFlash(flashOptions);
 
-        // Post-write verification using ROM MD5 check
-        this.log(`[INFO] Verifying image ${img.name} on flash...`);
-        await this.loader.verifyFlashMD5(img.offset, img.size);
-      }
+      this.onProgress({
+        overallPct: 100,
+        imagePct: 100,
+        imageIndex: images.length - 1,
+        imageName: images[images.length - 1].name,
+        bytesTransferred: totalBytes,
+        totalBytes,
+        speedKBps: 0,
+        remainingSec: 0
+      });
 
-      this.log('[INFO] All firmware images successfully written and verified.');
-
-      // Hard reset to start OS
-      await this.loader.hardReset();
-      this.log('[INFO] Target device rebooted into MicroKernel OS.');
-
+      this.log('[INFO] ROM reported successful flash completion.');
+      await this.loader.after('hard_reset');
+      this.log('[INFO] ESP32-S3 reset. SliverOS should now boot from flash.');
       return true;
     } finally {
       this.isFlashing = false;

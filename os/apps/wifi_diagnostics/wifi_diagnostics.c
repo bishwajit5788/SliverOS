@@ -7,6 +7,7 @@
 #include "hal_wifi.h"
 #include "vfs_log.h"
 #include "kernel.h"
+#include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -91,7 +92,7 @@ void wifi_diagnostics_task(void *context)
     if ((current_tick - s_last_log_tick) >= 100U) {
         char log_buf[128];
         snprintf(log_buf, sizeof(log_buf),
-                 "[WIFI_AUDIT] Ch:%u Tot:%u Mgmt:%u (Bcn:%u,Prb:%u) Ctrl:%u Data:%u RSSI:%d\n",
+                 "[WIFI_AUDIT] Ch:%u Tot:%" PRIu32 " Mgmt:%" PRIu32 " (Bcn:%" PRIu32 ",Prb:%" PRIu32 ") Ctrl:%" PRIu32 " Data:%" PRIu32 " RSSI:%" PRId32 "\n",
                  s_stats.active_channel, s_stats.total_frames_analyzed,
                  s_stats.mgmt_frames, s_stats.beacon_frames, s_stats.probe_frames,
                  s_stats.ctrl_frames, s_stats.data_frames, s_stats.avg_rssi);
