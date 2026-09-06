@@ -1,14 +1,17 @@
 {
   "name": "microkernel-esp32-flasher",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
-  "description": "Browser-based Web Serial firmware flasher for MicroKernel OS ESP32",
+  "description": "Beginner-first browser firmware flasher for SliverOS on ESP32-S3",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "esptool-js": "^0.6.1"
   },
   "devDependencies": {
     "vite": "^6.0.0"
