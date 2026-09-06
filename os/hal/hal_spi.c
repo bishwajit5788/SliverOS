@@ -23,6 +23,10 @@ static void spi_pre_cb(spi_transaction_t *t)
         (void)hal_gpio_write(HAL_SPI_PIN_DC, *dc);
     }
 }
+static void spi_post_cb(spi_transaction_t *t)
+{
+    if (t == NULL) return;
+}
 static hal_spi_slot_t *find_free_slot(void)
 {
     for (uint32_t i = 0U; i < HAL_SPI_QUEUE_DEPTH; ++i) if (!s_slots[i].in_use) return &s_slots[i];
@@ -45,7 +49,6 @@ static mk_status_t queue_transfer(const uint8_t *data, size_t length, uint8_t dc
     slot->transaction.length = length * 8U;
     slot->transaction.tx_buffer = data;
     slot->transaction.user = &slot->dc_level;
-    slot->transaction.pre_cb = spi_pre_cb;
     slot->in_use = true;
     if (spi_device_queue_trans(s_spi_handle, &slot->transaction, 0) != ESP_OK) {
         slot->in_use = false;
@@ -71,7 +74,7 @@ mk_status_t hal_spi_init(void)
     if (spi_bus_initialize(SPI2_HOST, &buscfg, SPI_DMA_CH_AUTO) != ESP_OK) return MK_STATUS_ERROR;
     spi_device_interface_config_t devcfg = {
         .clock_speed_hz = 20 * 1000 * 1000, .mode = 0, .spics_io_num = HAL_SPI_PIN_CS,
-        .queue_size = HAL_SPI_QUEUE_DEPTH, .pre_cb = NULL
+        .queue_size = HAL_SPI_QUEUE_DEPTH, .pre_cb = spi_pre_cb, .post_cb = spi_post_cb
     };
     if (spi_bus_add_device(SPI2_HOST, &devcfg, &s_spi_handle) != ESP_OK) return MK_STATUS_ERROR;
 #endif
@@ -102,18 +105,7 @@ mk_status_t hal_spi_write_cmd(uint8_t cmd)
 {
 #if defined(ESP_PLATFORM)
     hal_spi_service();
-    hal_spi_slot_t *slot = find_free_slot();
-    if (slot == NULL) return MK_STATUS_BUSY;
-    slot->command_byte = cmd;
-    memset(&slot->transaction, 0, sizeof(slot->transaction));
-    slot->dc_level = 0U;
-    slot->transaction.length = 8U;
-    slot->transaction.tx_buffer = &slot->command_byte;
-    slot->transaction.user = &slot->dc_level;
-    slot->transaction.pre_cb = spi_pre_cb;
-    slot->in_use = true;
-    if (spi_device_queue_trans(s_spi_handle, &slot->transaction, 0) != ESP_OK) { slot->in_use = false; return MK_STATUS_BUSY; }
-    return MK_STATUS_OK;
+    return queue_transfer(&cmd, 1U, 0U);
 #else
     (void)cmd; return MK_STATUS_OK;
 #endif
