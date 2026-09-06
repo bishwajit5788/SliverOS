@@ -2,9 +2,9 @@
  * @file hal_timer.c
  * @brief Hardware timer and monotonic timebase implementation.
  *
- * The scheduler uses a monotonic clock. Host tests use POSIX monotonic time.
- * Delay helpers are HAL-only primitives; cooperative application dispatch must
- * never call them as a blocking scheduling mechanism.
+ * The scheduler uses a monotonic clock. Delay helpers are retained only as
+ * low-level HAL utilities; the cooperative scheduler never sleeps through
+ * FreeRTOS or a blocking delay.
  */
 
 #if !defined(ESP_PLATFORM)
@@ -16,8 +16,6 @@
 #if defined(ESP_PLATFORM)
 #include "esp_timer.h"
 #include "rom/ets_sys.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 #else
 #include <time.h>
 #endif
@@ -48,10 +46,11 @@ uint32_t hal_timer_get_ms(void)
 void hal_timer_delay_ms(uint32_t ms)
 {
 #if defined(ESP_PLATFORM)
-    if (ms >= portTICK_PERIOD_MS) {
-        vTaskDelay(pdMS_TO_TICKS(ms));
-    } else {
-        ets_delay_us(ms * 1000U);
+    /* Explicitly a primitive delay, never used by the scheduler dispatch path. */
+    while (ms > 0U) {
+        const uint32_t slice = (ms > 10U) ? 10U : ms;
+        ets_delay_us(slice * 1000U);
+        ms -= slice;
     }
 #else
     struct timespec req = {
