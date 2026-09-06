@@ -6,7 +6,6 @@
 #include <string.h>
 
 #if defined(ESP_PLATFORM)
-#include "esp_hid.h"
 #include "esp_hidd.h"
 #include "esp_hid_common.h"
 #include "nimble/nimble_port.h"
