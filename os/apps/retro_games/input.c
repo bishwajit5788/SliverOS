@@ -8,17 +8,25 @@
 
 #define INPUT_DEBOUNCE_MS 15U
 
+static uint8_t s_host_input_state = 0U;
+
 mk_status_t input_init(void)
 {
+    s_host_input_state = 0U;
     (void)hal_gpio_init();
     return MK_STATUS_OK;
 }
 
+void input_set_state(uint8_t state)
+{
+    s_host_input_state = state;
+}
+
 uint8_t input_get_state(void)
 {
-    uint8_t state = 0U;
+    uint8_t state = s_host_input_state;
 
-    /* Active low button inputs */
+    /* Active low button inputs from hardware if wired */
     if (hal_gpio_read_debounced(HAL_PIN_BUTTON_UP, INPUT_DEBOUNCE_MS) == 0U) {
         state |= INPUT_BTN_UP;
     }

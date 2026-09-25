@@ -21,6 +21,7 @@ extern "C" {
 
 mk_status_t input_init(void);
 uint8_t input_get_state(void);
+void input_set_state(uint8_t state);
 
 #ifdef __cplusplus
 }

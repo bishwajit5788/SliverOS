@@ -22,12 +22,6 @@ mk_status_t hal_init(void)
         return status;
     }
 
-    status = hal_spi_init();
-    if (status != MK_STATUS_OK) {
-        mk_fault_record_full(MK_FAULT_HAL_FAIL, MK_FAULT_SRC_HAL, MK_FAULT_SEV_CRITICAL, 0x03);
-        return status;
-    }
-
     status = hal_wifi_init();
     if (status != MK_STATUS_OK) {
         mk_fault_record_full(MK_FAULT_HAL_FAIL, MK_FAULT_SRC_HAL, MK_FAULT_SEV_WARNING, 0x04);

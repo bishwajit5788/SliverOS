@@ -9,7 +9,6 @@
 #include "kernel_types.h"
 #include "hal_timer.h"
 #include "hal_gpio.h"
-#include "hal_spi.h"
 #include "hal_wifi.h"
 #include "hal_ble.h"
 

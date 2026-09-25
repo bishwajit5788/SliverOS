@@ -4,7 +4,6 @@
  */
 
 #include "retro_games.h"
-#include "renderer.h"
 #include "input.h"
 #include "kernel.h"
 #include <stdio.h>
@@ -31,7 +30,6 @@ static void reset_lander(void)
 
 mk_status_t retro_games_init(void)
 {
-    (void)renderer_init();
     (void)input_init();
     reset_lander();
     s_lander.score = 0;
@@ -104,43 +102,6 @@ void retro_games_task(void *context)
             reset_lander();
         }
     }
-
-    /* Rendering step: Erase dirty region and redraw scene */
-    renderer_clear();
-
-    /* Draw HUD */
-    char hud_buf[32];
-    snprintf(hud_buf, sizeof(hud_buf), "F:%u S:%u", s_lander.fuel, s_lander.score);
-    renderer_draw_string(2, 2, hud_buf);
-
-    /* Draw Landing Platform */
-    renderer_draw_line(LANDING_PAD_X, LANDING_PAD_Y, LANDING_PAD_X + LANDING_PAD_W, LANDING_PAD_Y, 1U);
-
-    /* Draw Lander Sprite (6x5 pixel polygon) */
-    int lx = s_lander.x / 10;
-    int ly = s_lander.y / 10;
-    if (lx >= 0 && lx < (int)DISPLAY_WIDTH - 6 && ly >= 0 && ly < (int)DISPLAY_HEIGHT - 6) {
-        if (s_lander.status == GAME_STATE_CRASHED) {
-            /* Debris particles */
-            renderer_draw_pixel((uint8_t)(lx - 2), (uint8_t)(ly - 2), 1U);
-            renderer_draw_pixel((uint8_t)(lx + 6), (uint8_t)(ly - 1), 1U);
-            renderer_draw_pixel((uint8_t)(lx + 2), (uint8_t)(ly + 4), 1U);
-        } else {
-            renderer_draw_line(lx + 2, ly, lx + 4, ly, 1U);
-            renderer_draw_line(lx, ly + 4, lx + 6, ly + 4, 1U);
-            renderer_draw_line(lx, ly + 4, lx + 3, ly + 1, 1U);
-            renderer_draw_line(lx + 6, ly + 4, lx + 3, ly + 1, 1U);
-        }
-    }
-
-    if (s_lander.status == GAME_STATE_LANDED) {
-        renderer_draw_string(40, 24, "LANDED");
-    } else if (s_lander.status == GAME_STATE_CRASHED) {
-        renderer_draw_string(38, 24, "CRASHED");
-    }
-
-    /* Flush dirty region over SPI HAL */
-    renderer_flush_dirty();
 }
 
 void retro_games_get_lander(game_lander_t *out_lander)
