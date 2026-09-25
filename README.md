@@ -133,8 +133,12 @@ Validates SHA-256 verification, strict target compatibility, SLVR/1 framing, CRC
 
 The SliverOS development target is the **7Semi ESP32-S3 Development Board** (`7Semi ESP32-S3-Dev-BoardC-1U-N8R8` with `ESP32-S3-WROOM-1 MCN8R8` module).
 
-Physical board photographs and the associated experiment record are documented here:
+Physical board photographs and the associated experiment record are documented in [docs/hardware/BOARD_PHOTO_TEST_20260925.md](docs/hardware/BOARD_PHOTO_TEST_20260925.md).
 
-[docs/hardware/BOARD_PHOTO_TEST_20260925.md](docs/hardware/BOARD_PHOTO_TEST_20260925.md)
+| 01. Board Front | 02. USB Connected to Mac |
+|:---:|:---:|
+| <img src="assets/hardware/20260925/01_board_front.jpeg" width="380" alt="7Semi ESP32-S3 Board Front" /> | <img src="assets/hardware/20260925/02_board_usb_connected.jpeg" width="380" alt="7Semi ESP32-S3 Connected to Mac" /> |
+| **03. ESP32-S3 Module Detail (MCN8R8)** | **04. Rear Silkscreen & Pinout** |
+| <img src="assets/hardware/20260925/03_board_detail.jpeg" width="380" alt="ESP32-S3-WROOM-1 Module Detail" /> | <img src="assets/hardware/20260925/04_board_connected.jpeg" width="380" alt="Rear Silkscreen and Pinout" /> |
 
-The photographic record documents the physical hardware setup and must not be interpreted as proof of complete firmware/hardware functional validation.
+> *Note: The photographic record documents physical hardware presence and bench setup. It must not be interpreted as proof of complete firmware/hardware functional validation.*
