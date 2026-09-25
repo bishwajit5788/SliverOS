@@ -3,155 +3,643 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#080b12">
-  <meta name="description" content="Install SliverOS on your ESP32-S3 directly from your browser.">
-  <title>SliverOS — ESP32-S3 Installer</title>
+  <title>SliverOS — Web Host &amp; Embedded Executive</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./src/styles.css">
 </head>
 <body>
-  <div class="ambient ambient-one"></div>
-  <div class="ambient ambient-two"></div>
+  <div class="sliver-os-root">
+    <!-- Top System Header Bar -->
+    <header class="top-bar">
+      <div class="top-bar-left">
+        <div class="brand-cluster">
+          <div class="brand-logo">
+            <span class="logo-glyph">⚡</span>
+          </div>
+          <div class="brand-text">
+            <span class="brand-name">SLIVER<span class="brand-accent">OS</span></span>
+            <span class="brand-target" id="headerChipBadge">7Semi ESP32-S3-N8R8</span>
+          </div>
+        </div>
+      </div>
 
-  <div class="app-shell">
-    <header class="topbar">
-      <a class="brand" href="#" aria-label="SliverOS home">
-        <span class="brand-mark"><span></span><span></span><span></span></span>
-        <span class="brand-copy">
-          <strong>SliverOS</strong>
-          <small>ESP32-S3 Installer</small>
-        </span>
-      </a>
+      <div class="top-bar-center">
+        <div class="connection-status-pill disconnected" id="connectionPill">
+          <span class="pulse-indicator"></span>
+          <span class="status-label" id="connectionStatusLabel">DISCONNECTED</span>
+        </div>
+      </div>
 
-      <div class="topbar-right">
-        <span class="platform-pill"><i></i> ESP32-S3</span>
-        <span class="version-pill" id="appVersionBadge">v1.0.0</span>
-        <span class="status-pill" id="headerStatusBadge">DISCONNECTED</span>
+      <div class="top-bar-right">
+        <button id="btnSimulate" class="btn btn-simulate" title="Simulate SliverOS without hardware">
+          <span class="btn-icon">🧪</span> SIMULATE DEVICE
+        </button>
+        <button id="btnConnect" class="btn btn-connect">
+          <span class="btn-icon">⚡</span> CONNECT DEVICE
+        </button>
+        <button id="btnDisconnect" class="btn btn-secondary" style="display: none;">
+          DISCONNECT
+        </button>
       </div>
     </header>
 
-    <main>
-      <section class="hero">
-        <div class="hero-copy">
-          <div class="eyebrow"><span class="eyebrow-dot"></span> Browser-based firmware installer</div>
-          <h1>Put SliverOS on your<br><span>ESP32-S3.</span></h1>
-          <p class="hero-text">No command line. No drivers to configure. Connect your board, let us identify it, and install SliverOS in a few guided steps.</p>
-
-          <div class="hero-actions">
-            <button id="btnConnect" class="btn btn-primary btn-hero">
-              <span class="btn-symbol">↗</span>
-              <span><b>Connect ESP32-S3</b><small>Use a USB data cable</small></span>
-            </button>
-            <button id="btnDisconnect" class="btn btn-ghost" disabled>Disconnect</button>
-          </div>
-
-          <div class="compatibility">
-            <span class="check">✓</span>
-            <span>Designed for beginners</span>
-            <span class="dot-separator">•</span>
-            <span>Runs in Chrome / Edge</span>
-            <span class="dot-separator">•</span>
-            <span>USB only</span>
-          </div>
-        </div>
-
-        <div class="board-stage" aria-label="ESP32-S3 installation illustration">
-          <div class="stage-glow"></div>
-          <div class="orbit orbit-a"></div>
-          <div class="orbit orbit-b"></div>
-          <div class="board">
-            <div class="board-usb"></div>
-            <div class="board-chip"><span>ESP</span><strong>32-S3</strong></div>
-            <div class="board-pin pin-left p1"></div><div class="board-pin pin-left p2"></div><div class="board-pin pin-left p3"></div><div class="board-pin pin-left p4"></div>
-            <div class="board-pin pin-right p1"></div><div class="board-pin pin-right p2"></div><div class="board-pin pin-right p3"></div><div class="board-pin pin-right p4"></div>
-            <div class="board-led"></div>
-            <div class="board-button">BOOT</div>
-            <div class="board-label">SLIVEROS</div>
-          </div>
-          <div class="floating-tag tag-usb"><span class="tag-icon">⌁</span> USB Serial</div>
-          <div class="floating-tag tag-safe"><span>✓</span> Safe install</div>
-        </div>
-      </section>
-
-      <section class="steps" aria-label="Installation steps">
-        <div class="step active"><span>01</span><div><b>Connect</b><small>Plug in USB</small></div></div>
-        <div class="step-line"></div>
-        <div class="step"><span>02</span><div><b>Identify</b><small>Detect your board</small></div></div>
-        <div class="step-line"></div>
-        <div class="step"><span>03</span><div><b>Install</b><small>Flash SliverOS</small></div></div>
-        <div class="step-line"></div>
-        <div class="step"><span>04</span><div><b>Finish</b><small>Start using SliverOS</small></div></div>
-      </section>
-
-      <section class="installer-grid">
-        <div class="card device-card">
-          <div class="section-heading">
-            <div><span class="section-kicker">DEVICE</span><h2>Your ESP32-S3</h2></div>
-            <span class="mini-state" id="deviceState"><i></i> Waiting</span>
-          </div>
-
-          <div class="device-summary">
-            <div class="device-icon"><span>ESP</span><strong>32-S3</strong></div>
-            <div><strong id="valChipFamily">Not connected</strong><p id="safetyStatusText">Connect an ESP32-S3 using a USB data cable to begin.</p></div>
-          </div>
-
-          <div class="device-grid">
-            <div class="info-group"><span class="info-label">Chip family</span><span class="info-value" id="valChipRev">—</span></div>
-            <div class="info-group"><span class="info-label">Flash capacity</span><span class="info-value" id="valFlashSize">—</span></div>
-            <div class="info-group"><span class="info-label">Device address</span><span class="info-value" id="valMacAddress">—</span></div>
-            <div class="info-group"><span class="info-label">SliverOS target</span><span class="info-value highlight" id="valTargetFirmware">Waiting for device</span></div>
-          </div>
-
-          <details class="advanced-panel">
-            <summary>Advanced flashing options</summary>
-            <div class="advanced-content"><label>Serial baudrate <select id="selBaudrate" class="select-input"><option value="115200">115,200 — safest</option><option value="460800" selected>460,800 — recommended</option><option value="921600">921,600 — fastest</option></select></label><span>These options are safe to leave at their defaults.</span></div>
-          </details>
-
-          <button id="btnFlash" class="btn btn-install" disabled>
-            <span class="install-icon">↓</span><span><b>Install SliverOS</b><small>Erase, flash &amp; verify automatically</small></span><span class="arrow">→</span>
+    <!-- Main Workspace Layout -->
+    <div class="workspace-body">
+      <!-- Sidebar Navigation -->
+      <aside class="sidebar-nav">
+        <div class="nav-section-title">SYSTEM SHELL</div>
+        <nav class="nav-menu">
+          <button class="nav-item active" data-tab="desktop" id="navDesktop">
+            <span class="nav-icon">🖥️</span>
+            <span class="nav-text">Desktop</span>
           </button>
-        </div>
+          <button class="nav-item" data-tab="apps" id="navApps">
+            <span class="nav-icon">🚀</span>
+            <span class="nav-text">Applications</span>
+            <span class="nav-badge">4</span>
+          </button>
+          <button class="nav-item" data-tab="terminal" id="navTerminal">
+            <span class="nav-icon">⌨️</span>
+            <span class="nav-text">Terminal</span>
+          </button>
+          <button class="nav-item" data-tab="monitor" id="navMonitor">
+            <span class="nav-icon">📊</span>
+            <span class="nav-text">Device Monitor</span>
+          </button>
+          <button class="nav-item" data-tab="logs" id="navLogs">
+            <span class="nav-icon">📜</span>
+            <span class="nav-text">System Logs</span>
+          </button>
+          <button class="nav-item" data-tab="storage" id="navStorage">
+            <span class="nav-icon">💾</span>
+            <span class="nav-text">VFS Storage</span>
+          </button>
+          <div class="nav-divider"></div>
+          <div class="nav-section-title">FIRMWARE</div>
+          <button class="nav-item" data-tab="flasher" id="navFlasher">
+            <span class="nav-icon">📥</span>
+            <span class="nav-text">Firmware Flasher</span>
+          </button>
+        </nav>
 
-        <aside class="help-card">
-          <div class="help-icon">?</div>
-          <span class="section-kicker">FIRST TIME?</span>
-          <h3>It really is this simple.</h3>
-          <ol>
-            <li><span>1</span><p>Connect your ESP32-S3 with a <b>USB data cable</b>.</p></li>
-            <li><span>2</span><p>Click <b>Connect ESP32-S3</b> and select your device.</p></li>
-            <li><span>3</span><p>Click <b>Install SliverOS</b> and wait for verification.</p></li>
-          </ol>
-          <div class="help-note"><span>✦</span> Keep the board connected until installation finishes.</div>
-        </aside>
-      </section>
-
-      <section class="card progress-card" id="progressSection">
-        <div class="section-heading">
-          <div><span class="section-kicker">INSTALLATION</span><h2>Flashing progress</h2></div>
-          <div class="progress-stats" id="progressMetrics"><span id="metricSpeed">0 KB/s</span><span>•</span><span id="metricTransferred">0 / 0 KB</span><span>•</span><span id="metricEta">ETA —</span></div>
-        </div>
-        <div class="progress-main">
-          <div class="progress-label-row"><span id="lblOverallStep">Ready when you are</span><strong id="lblOverallPct">0%</strong></div>
-          <div class="progress-track"><div class="progress-bar-fill" id="barOverall" style="width:0%"></div></div>
-        </div>
-        <div class="image-progress-list" id="imageProgressContainer"></div>
-      </section>
-
-      <section class="card console-card">
-        <div class="section-heading console-heading">
-          <div><span class="section-kicker">DEVELOPER MODE</span><h2>Installation console</h2></div>
-          <div class="console-actions">
-            <div class="filter-group"><button class="btn-filter active" data-filter="ALL">ALL</button><button class="btn-filter" data-filter="INFO">INFO</button><button class="btn-filter" data-filter="WARN">WARN</button><button class="btn-filter" data-filter="ERROR">ERROR</button><button class="btn-filter" data-filter="DEBUG">DEBUG</button></div>
-            <button id="btnClearConsole" class="btn btn-small btn-ghost">Clear</button>
+        <div class="sidebar-footer">
+          <div class="footer-meta">
+            <span class="meta-label">Protocol</span>
+            <span class="meta-val">SLVR/1 (Binary)</span>
+          </div>
+          <div class="footer-meta">
+            <span class="meta-label">Transport</span>
+            <span class="meta-val">Web Serial / Native USB</span>
           </div>
         </div>
-        <div class="console-output" id="consoleOutput" role="log" aria-label="Installation console"></div>
-      </section>
-    </main>
+      </aside>
 
-    <footer class="footer">
-      <div><span class="footer-logo">S</span><b>SliverOS</b><span>Custom cooperative embedded OS executive</span></div>
-      <div><span>ESP32-S3</span><span>•</span><span>Web Serial</span><span>•</span><span>SHA-256 verified firmware</span></div>
-    </footer>
+      <!-- Main Stage Container -->
+      <main class="main-stage">
+        <!-- Notification Banner Container -->
+        <div class="toast-shelf" id="toastShelf"></div>
+
+        <!-- TAB 1: DESKTOP OVERVIEW -->
+        <section class="stage-view active" id="viewDesktop">
+          <div class="view-header">
+            <div class="view-headline">
+              <h2>SliverOS Desktop</h2>
+              <p class="view-sub">Embedded Executive Control &amp; Host Interface</p>
+            </div>
+            <div class="view-actions">
+              <span class="device-tag" id="desktopDeviceTag">Waiting for connection...</span>
+            </div>
+          </div>
+
+          <!-- Quick Metrics Bar -->
+          <div class="metric-ribbon">
+            <div class="metric-card">
+              <span class="m-label">ACTIVE APPLICATION</span>
+              <span class="m-value highlight-cyan" id="metricActiveApp">—</span>
+              <span class="m-sub" id="metricActiveAppState">Cooperative Task</span>
+            </div>
+            <div class="metric-card">
+              <span class="m-label">EXECUTIVE TICK / UPTIME</span>
+              <span class="m-value" id="metricUptime">0 s</span>
+              <span class="m-sub" id="metricTick">Tick: 0</span>
+            </div>
+            <div class="metric-card">
+              <span class="m-label">INTERNAL SRAM (128 KB ARENA)</span>
+              <span class="m-value highlight-green" id="metricSramUsed">0 KB</span>
+              <div class="mini-bar-bg"><div class="mini-bar-fill" id="barSram" style="width: 0%;"></div></div>
+            </div>
+            <div class="metric-card">
+              <span class="m-label">EXTERNAL PSRAM (8 MB)</span>
+              <span class="m-value highlight-purple" id="metricPsramFree">8192 KB Free</span>
+              <span class="m-sub">Non-critical Buffers</span>
+            </div>
+          </div>
+
+          <!-- Applications Grid -->
+          <div class="section-title">
+            <h3>Registered Core Applications (4)</h3>
+            <span class="sub-counter">Deterministic Cooperative Slices</span>
+          </div>
+
+          <div class="app-cards-grid">
+            <!-- App 0: BLE-HID Macro -->
+            <div class="app-card" id="cardAppBle">
+              <div class="app-card-header">
+                <div class="app-card-icon icon-ble">⌨️</div>
+                <div class="app-card-meta">
+                  <h4>BLE-HID Macro</h4>
+                  <span class="app-state-pill" id="badgeAppBle">READY</span>
+                </div>
+              </div>
+              <p class="app-card-desc">Bluetooth Low Energy HID keyboard macro executor loading scripted keystroke files from VFS.</p>
+              <div class="app-card-actions">
+                <button class="btn btn-sm btn-outline launch-btn" data-app-id="0">Open App</button>
+              </div>
+            </div>
+
+            <!-- App 1: Wi-Fi Diagnostics -->
+            <div class="app-card" id="cardAppWifi">
+              <div class="app-card-header">
+                <div class="app-card-icon icon-wifi">📡</div>
+                <div class="app-card-meta">
+                  <h4>Wi-Fi Diagnostics</h4>
+                  <span class="app-state-pill" id="badgeAppWifi">READY</span>
+                </div>
+              </div>
+              <p class="app-card-desc">Safe passive 802.11 frame metadata sniffer auditing management, control, data frames &amp; RSSI.</p>
+              <div class="app-card-actions">
+                <button class="btn btn-sm btn-outline launch-btn" data-app-id="1">Open App</button>
+              </div>
+            </div>
+
+            <!-- App 2: Network Diagnostics -->
+            <div class="app-card" id="cardAppNet">
+              <div class="app-card-header">
+                <div class="app-card-icon icon-net">🌐</div>
+                <div class="app-card-meta">
+                  <h4>Network Diagnostics</h4>
+                  <span class="app-state-pill" id="badgeAppNet">READY</span>
+                </div>
+              </div>
+              <p class="app-card-desc">Bounded non-blocking TCP socket connectivity auditor for ports 22, 80, 443 with ICMP telemetry.</p>
+              <div class="app-card-actions">
+                <button class="btn btn-sm btn-outline launch-btn" data-app-id="2">Open App</button>
+              </div>
+            </div>
+
+            <!-- App 3: Retro Games -->
+            <div class="app-card highlight-glow" id="cardAppGames">
+              <div class="app-card-header">
+                <div class="app-card-icon icon-games">🚀</div>
+                <div class="app-card-meta">
+                  <h4>Retro Games (Space Lander)</h4>
+                  <span class="app-state-pill active" id="badgeAppGames">READY</span>
+                </div>
+              </div>
+              <p class="app-card-desc">Real-time vector lunar lander physics executing on ESP32, streamed to host Canvas renderer.</p>
+              <div class="app-card-actions">
+                <button class="btn btn-sm btn-primary launch-btn" data-app-id="3">Play Game</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB 2: APPLICATIONS STAGE -->
+        <section class="stage-view" id="viewApps">
+          <div class="apps-sub-nav">
+            <button class="sub-nav-tab active" data-subtab="subGames">🚀 Space Micro-Lander</button>
+            <button class="sub-nav-tab" data-subtab="subWifi">📡 Wi-Fi Diagnostics</button>
+            <button class="sub-nav-tab" data-subtab="subNet">🌐 Network Diagnostics</button>
+            <button class="sub-nav-tab" data-subtab="subBle">⌨️ BLE-HID Macro</button>
+          </div>
+
+          <!-- Sub-Tab: Retro Games (Space Micro-Lander) -->
+          <div class="app-sub-stage active" id="subGames">
+            <div class="game-stage-layout">
+              <div class="canvas-wrapper">
+                <div class="canvas-header-bar">
+                  <div class="game-title-group">
+                    <span class="game-badge">APP 4</span>
+                    <span class="game-title">SPACE MICRO-LANDER</span>
+                    <span class="game-status-tag" id="gameStatusTag">READY</span>
+                  </div>
+                  <div class="game-hud-stats">
+                    <span class="hud-item">FUEL: <strong id="hudFuel">500</strong></span>
+                    <span class="hud-item">SCORE: <strong id="hudScore">0</strong></span>
+                    <span class="hud-item">VERT V: <strong id="hudVy">0</strong></span>
+                    <span class="hud-item">HORIZ V: <strong id="hudVx">0</strong></span>
+                  </div>
+                </div>
+
+                <div class="canvas-frame">
+                  <canvas id="gameCanvas" width="640" height="360"></canvas>
+                  <div class="canvas-overlay" id="gameOverlay">
+                    <div class="overlay-modal" id="overlayModal">
+                      <h3 id="overlayTitle">SPACE MICRO-LANDER</h3>
+                      <p id="overlayMessage">Physics runs on ESP32-S3 • Graphics rendered by Mac Web Host</p>
+                      <button class="btn btn-primary" id="btnStartGame">START FLIGHT</button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- On-Screen Controls -->
+                <div class="game-controls-bar">
+                  <div class="control-key-hints">
+                    <span class="key-hint"><kbd>▲</kbd> / <kbd>W</kbd> Thrust</span>
+                    <span class="key-hint"><kbd>◀</kbd> / <kbd>A</kbd> Pitch Left</span>
+                    <span class="key-hint"><kbd>▶</kbd> / <kbd>D</kbd> Pitch Right</span>
+                    <span class="key-hint"><kbd>Space</kbd> / <kbd>R</kbd> Reset</span>
+                  </div>
+                  <div class="control-buttons-cluster">
+                    <button class="ctrl-btn" id="btnCtrlLeft">◀ LEFT</button>
+                    <button class="ctrl-btn ctrl-btn-thrust" id="btnCtrlThrust">▲ THRUST</button>
+                    <button class="ctrl-btn" id="btnCtrlRight">RIGHT ▶</button>
+                    <button class="ctrl-btn ctrl-btn-reset" id="btnCtrlReset">RESET</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Game Info Panel -->
+              <div class="game-side-panel">
+                <div class="panel-card">
+                  <h4>Physics Engine Telemetry</h4>
+                  <div class="telemetry-row">
+                    <span class="t-label">Simulation Host:</span>
+                    <span class="t-val" id="valSimHost">ESP32-S3 Task 4</span>
+                  </div>
+                  <div class="telemetry-row">
+                    <span class="t-label">Gravity Step:</span>
+                    <span class="t-val">0.10 m/s² (Fixed-point)</span>
+                  </div>
+                  <div class="telemetry-row">
+                    <span class="t-label">Landing Threshold:</span>
+                    <span class="t-val">&lt; 0.8 Vy, &lt; 0.4 Vx</span>
+                  </div>
+                  <div class="telemetry-row">
+                    <span class="t-label">Protocol Frame Seq:</span>
+                    <span class="t-val" id="valGameFrameSeq">0</span>
+                  </div>
+                </div>
+
+                <div class="panel-card">
+                  <h4>Mission Objective</h4>
+                  <p class="mission-text">
+                    Control the lunar module using thrusters. Navigate to the illuminated landing pad and touch down with safe vertical speed. Watch your fuel reserves!
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sub-Tab: Wi-Fi Diagnostics -->
+          <div class="app-sub-stage" id="subWifi">
+            <div class="tool-view-layout">
+              <div class="tool-main-panel">
+                <div class="panel-card">
+                  <div class="panel-header">
+                    <h4>802.11 Passive Frame Metadata Classification</h4>
+                    <span class="badge badge-safe">SAFE METADATA ONLY • NO PMKID</span>
+                  </div>
+                  <p class="panel-desc">Passively analyzes ambient 802.11 frames via promiscuous callback into bounded ring buffers.</p>
+
+                  <div class="spectrum-bar-wrap">
+                    <div class="spectrum-label">Channel Hopping Monitor (Ch 1 - 11)</div>
+                    <div class="channel-indicator-row" id="channelRow">
+                      <!-- Dynamically filled with channels 1..11 -->
+                    </div>
+                  </div>
+
+                  <div class="wifi-stats-grid">
+                    <div class="stat-box">
+                      <span class="s-label">Total Frames</span>
+                      <span class="s-val" id="wifiTotFrames">0</span>
+                    </div>
+                    <div class="stat-box">
+                      <span class="s-label">Management</span>
+                      <span class="s-val" id="wifiMgmtFrames">0</span>
+                    </div>
+                    <div class="stat-box">
+                      <span class="s-label">Control</span>
+                      <span class="s-val" id="wifiCtrlFrames">0</span>
+                    </div>
+                    <div class="stat-box">
+                      <span class="s-label">Data</span>
+                      <span class="s-val" id="wifiDataFrames">0</span>
+                    </div>
+                    <div class="stat-box">
+                      <span class="s-label">Average RSSI</span>
+                      <span class="s-val" id="wifiAvgRssi">— dBm</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sub-Tab: Network Diagnostics -->
+          <div class="app-sub-stage" id="subNet">
+            <div class="tool-view-layout">
+              <div class="tool-main-panel">
+                <div class="panel-card">
+                  <div class="panel-header">
+                    <h4>Bounded Network Reachability Diagnostics</h4>
+                    <span class="badge badge-safe">AUTHORIZED AUDIT SCOPE</span>
+                  </div>
+
+                  <div class="net-target-row">
+                    <label for="inputNetTarget">Target Host IP:</label>
+                    <input type="text" id="inputNetTarget" class="text-input" value="127.0.0.1" placeholder="192.168.1.1">
+                    <button class="btn btn-primary" id="btnRunNetDiag">RUN DIAGNOSTIC</button>
+                  </div>
+
+                  <div class="port-status-cards">
+                    <div class="port-card" id="cardPort22">
+                      <span class="p-port">PORT 22</span>
+                      <span class="p-service">SSH Service</span>
+                      <span class="p-status" id="statusPort22">UNTESTED</span>
+                    </div>
+                    <div class="port-card" id="cardPort80">
+                      <span class="p-port">PORT 80</span>
+                      <span class="p-service">HTTP Web</span>
+                      <span class="p-status" id="statusPort80">UNTESTED</span>
+                    </div>
+                    <div class="port-card" id="cardPort443">
+                      <span class="p-port">PORT 443</span>
+                      <span class="p-service">HTTPS Secure</span>
+                      <span class="p-status" id="statusPort443">UNTESTED</span>
+                    </div>
+                  </div>
+
+                  <div class="icmp-telemetry-box">
+                    <span class="icmp-label">ICMP Reachability &amp; RTT:</span>
+                    <span class="icmp-value" id="valIcmpStatus">NOT TESTED (Real ESP32 measurement required)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sub-Tab: BLE-HID Macro -->
+          <div class="app-sub-stage" id="subBle">
+            <div class="tool-view-layout">
+              <div class="tool-main-panel">
+                <div class="panel-card">
+                  <div class="panel-header">
+                    <h4>BLE Keyboard Macro Scripting</h4>
+                    <span class="badge badge-platform">ESP-IDF NimBLE / HID</span>
+                  </div>
+                  <p class="panel-desc">Loads macro sequences from the secure VFS record storage partition and generates HID keystroke reports.</p>
+
+                  <div class="macro-editor-wrap">
+                    <label>Active Macro File (<code>macro.txt</code>):</label>
+                    <textarea id="macroEditorText" class="code-area" readonly>
+REM SliverOS Automated Diagnostics Macro
+DELAY 500
+STRING system_diagnostics --all
+ENTER
+DELAY 1000
+STRING echo "SliverOS online"
+ENTER
+                    </textarea>
+                  </div>
+
+                  <div class="macro-actions">
+                    <button class="btn btn-primary" id="btnRunMacro">EXECUTE MACRO</button>
+                    <button class="btn btn-secondary" id="btnStopMacro">STOP</button>
+                    <span class="macro-status-text" id="macroStatusText">State: Idle</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB 3: DEVELOPER TERMINAL -->
+        <section class="stage-view" id="viewTerminal">
+          <div class="terminal-container">
+            <div class="terminal-topbar">
+              <div class="term-window-dots">
+                <span class="dot dot-red"></span>
+                <span class="dot dot-yellow"></span>
+                <span class="dot dot-green"></span>
+              </div>
+              <span class="term-title">root@sliveros:~# (Cooperative Dispatcher)</span>
+              <div class="term-shortcuts">
+                <button class="term-btn-chip" data-cmd="help">help</button>
+                <button class="term-btn-chip" data-cmd="apps">apps</button>
+                <button class="term-btn-chip" data-cmd="status">status</button>
+                <button class="term-btn-chip" data-cmd="mem">mem</button>
+                <button class="term-btn-chip" data-cmd="tasks">tasks</button>
+                <button class="term-btn-chip" data-cmd="vfs">vfs</button>
+                <button class="term-btn-chip" data-cmd="clear">clear</button>
+              </div>
+            </div>
+
+            <div class="terminal-screen" id="terminalOutput" role="log">
+              <div class="term-banner">
+====================================================
+        SliverOS - ESP32-S3 Runtime Executive       
+====================================================
+  Host UI Protocol:    SLVR/1 over USB Serial/JTAG
+  Target Device:       7Semi ESP32-S3-Dev-BoardC-1U-N8R8
+  Type 'help' for available diagnostic commands.
+====================================================
+              </div>
+            </div>
+
+            <form class="terminal-input-bar" id="termForm">
+              <span class="term-prompt">root@sliver:~#</span>
+              <input type="text" id="termInput" class="term-text-input" autocomplete="off" spellcheck="false" placeholder="Enter shell command...">
+              <button type="submit" class="btn btn-sm btn-primary">SEND</button>
+            </form>
+          </div>
+        </section>
+
+        <!-- TAB 4: DEVICE MONITOR -->
+        <section class="stage-view" id="viewMonitor">
+          <div class="view-header">
+            <div class="view-headline">
+              <h2>Real-Time Device Telemetry</h2>
+              <p class="view-sub">Non-Preemptive Cooperative Task Accounting &amp; Memory Isolation</p>
+            </div>
+            <button class="btn btn-sm btn-secondary" id="btnRefreshStatus">REFRESH STATUS</button>
+          </div>
+
+          <!-- Tasks Table Card -->
+          <div class="panel-card">
+            <h4>Cooperative Task Control Blocks (TCBs)</h4>
+            <div class="table-responsive">
+              <table class="tcb-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>TASK NAME</th>
+                    <th>STATE</th>
+                    <th>PRIO</th>
+                    <th>PERIOD</th>
+                    <th>RUNS</th>
+                    <th>LAST (µs)</th>
+                    <th>WORST (µs)</th>
+                    <th>OVERRUNS</th>
+                  </tr>
+                </thead>
+                <tbody id="tcbTableBody">
+                  <tr><td colspan="9" class="td-empty">Connect device to view live TCB metrics</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Memory Architecture Breakdown -->
+          <div class="memory-grid">
+            <div class="panel-card">
+              <h4>Internal SRAM (128 KB Static Arena)</h4>
+              <p class="card-desc">Zero dynamic heap allocation in ISR; reserved for TCBs &amp; fixed memory pools.</p>
+              <div class="progress-bar-wrapper">
+                <div class="progress-bar-fill progress-sram" id="barMonitorSram" style="width: 0%;"></div>
+              </div>
+              <div class="mem-legend">
+                <span id="txtArenaUsed">Used: 0 B</span>
+                <span id="txtArenaFree">Free: 131,072 B</span>
+              </div>
+            </div>
+
+            <div class="panel-card">
+              <h4>External PSRAM (8 MB Bulk Storage)</h4>
+              <p class="card-desc">Isolated for non-critical application assets and protocol staging buffers.</p>
+              <div class="progress-bar-wrapper">
+                <div class="progress-bar-fill progress-psram" id="barMonitorPsram" style="width: 0%;"></div>
+              </div>
+              <div class="mem-legend">
+                <span id="txtPsramUsed">Used: 0 B</span>
+                <span id="txtPsramFree">Free: 8,388,608 B</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB 5: SYSTEM LOGS -->
+        <section class="stage-view" id="viewLogs">
+          <div class="view-header">
+            <div class="view-headline">
+              <h2>System Audit Logs</h2>
+              <p class="view-sub">Streaming Diagnostic Records from SliverOS</p>
+            </div>
+            <div class="log-actions">
+              <button class="btn btn-sm btn-secondary" id="btnClearLogs">CLEAR LOGS</button>
+            </div>
+          </div>
+
+          <div class="log-stream-card" id="systemLogStream">
+            <div class="log-line log-info">
+              <span class="log-time">[0.000]</span>
+              <span class="log-tag">[SYSTEM]</span>
+              <span class="log-msg">SliverOS Web Host initialized. Ready for USB connection.</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB 6: VFS STORAGE -->
+        <section class="stage-view" id="viewStorage">
+          <div class="view-header">
+            <div class="view-headline">
+              <h2>VFS Record Storage</h2>
+              <p class="view-sub">Dedicated NOR Flash Sector Storage ('osfs' Partition)</p>
+            </div>
+          </div>
+
+          <div class="panel-card">
+            <h4>Partition Geometry &amp; Wear Awareness</h4>
+            <div class="vfs-stats-grid">
+              <div class="vfs-box">
+                <span class="v-label">Total Sectors</span>
+                <span class="v-val" id="vfsTotSectors">672</span>
+                <span class="v-sub">4096 B / Sector</span>
+              </div>
+              <div class="vfs-box">
+                <span class="v-label">Capacity</span>
+                <span class="v-val">2.625 MB</span>
+                <span class="v-sub">Flash Offset 0x520000</span>
+              </div>
+              <div class="vfs-box">
+                <span class="v-label">Power-loss Markers</span>
+                <span class="v-val highlight-green">0x55AA55AA</span>
+                <span class="v-sub">CRC32 Verified</span>
+              </div>
+              <div class="vfs-box">
+                <span class="v-label">Sector Endurance</span>
+                <span class="v-val">~100,000</span>
+                <span class="v-sub">Erase Cycles / Sector</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB 7: FIRMWARE FLASHER (Preserved Official Installer) -->
+        <section class="stage-view" id="viewFlasher">
+          <div class="view-header">
+            <div class="view-headline">
+              <h2>Official ESP32-S3 Firmware Installer</h2>
+              <p class="view-sub">Direct-from-Browser esptool-js Flashing Engine</p>
+            </div>
+          </div>
+
+          <div class="card device-card">
+            <div class="card-header">
+              <h3>ESP32-S3 Target Verification</h3>
+              <div class="card-actions">
+                <span class="badge badge-platform">ESP32-S3 ONLY</span>
+              </div>
+            </div>
+
+            <div class="device-grid">
+              <div class="info-group">
+                <span class="info-label">Supported Chip Target</span>
+                <span class="info-value highlight-cyan">ESP32-S3 (7Semi N8R8)</span>
+              </div>
+              <div class="info-group">
+                <span class="info-label">Flash Geometry</span>
+                <span class="info-value">8 MB Octal/Quad SPI</span>
+              </div>
+              <div class="info-group">
+                <span class="info-label">A/B OTA Partition</span>
+                <span class="info-value">ota_0 (0x20000) • ota_1 (0x2A0000)</span>
+              </div>
+              <div class="info-group">
+                <span class="info-label">Integrity Verification</span>
+                <span class="info-value">SHA-256 Digest Bit-check</span>
+              </div>
+            </div>
+
+            <div class="flashing-actions">
+              <button id="btnFlash" class="btn btn-success btn-large">
+                <span class="btn-icon">📥</span> INSTALL FIRMWARE TO ESP32-S3
+              </button>
+              <div class="safety-indicator" id="safetyStatusText">
+                Rejects incompatible chips (ESP32 / ESP32-C3). Connect ESP32-S3 via USB cable.
+              </div>
+            </div>
+          </div>
+
+          <!-- Flashing Progress Container -->
+          <div class="card progress-card" id="progressSection" style="display: none;">
+            <div class="card-header">
+              <h3>Flash Transfer Progress</h3>
+              <div class="progress-stats" id="progressMetrics">
+                <span id="metricSpeed">0 KB/s</span>
+                <span class="separator">•</span>
+                <span id="metricTransferred">0 / 0 KB</span>
+              </div>
+            </div>
+            <div class="progress-bar-wrapper">
+              <div class="progress-bar-fill" id="barOverall" style="width: 0%;"></div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
   </div>
 
   <script type="module" src="./src/main.js"></script>

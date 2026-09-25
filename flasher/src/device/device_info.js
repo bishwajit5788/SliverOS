@@ -8,17 +8,21 @@ export class DeviceInfo {
   static getChipDisplayName(chipKey) {
     switch (chipKey?.toLowerCase()) {
       case 'esp32s3':
-        return 'ESP32-S3-DevKitC-1 [PRIMARY RELEASE TARGET]';
+        return 'ESP32-S3 (7Semi Dev-BoardC-1U-N8R8) [TARGET HARDWARE]';
       case 'esp32':
-        return 'ESP32 Classic [FUTURE PORTING TARGET]';
+        return 'ESP32 Classic [UNSUPPORTED - REJECTED]';
       case 'esp32c3':
-        return 'ESP32-C3 [FUTURE PORTING TARGET]';
+        return 'ESP32-C3 [UNSUPPORTED - REJECTED]';
       default:
-        return 'ESP32 Generic';
+        return 'ESP32 Generic [UNSUPPORTED]';
     }
   }
 
   static isPrimaryTarget(chipKey) {
+    return chipKey?.toLowerCase().replace(/[-_]/g, '') === 'esp32s3';
+  }
+
+  static isSupportedTarget(chipKey) {
     return chipKey?.toLowerCase().replace(/[-_]/g, '') === 'esp32s3';
   }
 

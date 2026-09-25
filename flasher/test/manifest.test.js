@@ -50,6 +50,12 @@ test('Device Compatibility Matching & Primary Target', () => {
   assert.equal(DeviceInfo.isPrimaryTarget('esp32'), false);
   assert.equal(DeviceInfo.isPrimaryTarget('esp32c3'), false);
 
+  // Supported target verification (ESP32-S3 only)
+  assert.equal(DeviceInfo.isSupportedTarget('esp32s3'), true);
+  assert.equal(DeviceInfo.isSupportedTarget('ESP32-S3'), true);
+  assert.equal(DeviceInfo.isSupportedTarget('esp32'), false);
+  assert.equal(DeviceInfo.isSupportedTarget('esp32c3'), false);
+
   // Incompatible chip rejection
   assert.equal(DeviceInfo.isTargetCompatible('ESP32-C3', 'esp32'), false);
   assert.equal(DeviceInfo.isTargetCompatible('ESP8266', 'esp32'), false);
