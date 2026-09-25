@@ -6,123 +6,189 @@ Target Hardware: **7Semi ESP32-S3-Dev-BoardC-1U-N8R8**
 - **Silicon**: Espressif ESP32-S3 (Xtensa 32-bit dual-core LX7 @ 240 MHz)
 - **Module**: ESP32-S3-WROOM-1 MCN8R8
 - **Flash**: 8 MB Quad/Octal SPI Flash (DIO, 80 MHz)
-- **PSRAM**: 8 MB Octal SPI External RAM (`CONFIG_SPIRAM_MODE_OCT=y`)
+- **PSRAM**: 8 MB External PSRAM
 - **Native USB**: Hardware USB Serial/JTAG Controller connected via onboard USB-C port (`/dev/cu.usbmodem101` on macOS)
 - **Display Hardware**: **None**. The Mac browser serves as the graphical display and host interface over Web Serial.
 
 ---
 
-## 1. System Architecture
+## System Architecture
 
 ```text
 ESP32-S3 (7Semi N8R8)
          ↓
-  SliverOS Runtime (Cooperative Scheduler, Memory Arenas, VFS, Apps)
+  SliverOS Runtime
+  (Cooperative Scheduler, Memory, VFS, Apps)
          ↓
-  SLVR/1 Host Protocol (CRC-16-CCITT Framed Duplex Stream)
+  SLVR/1 Host Protocol
+  (CRC-16-CCITT framed duplex stream)
          ↓
-  Native USB Serial/JTAG Controller (/dev/cu.usbmodem101)
+  Native USB Serial/JTAG
          ↓
-  Web Serial API (Chromium / Google Chrome on macOS)
+  Web Serial API
+  (Chromium / Google Chrome on macOS)
          ↓
-  SliverOS Web Host (Glassmorphic Desktop Interface)
+  SliverOS Web Host
          ↓
      Mac Display
 ```
 
-### ESP32-S3 Responsibilities:
-- SliverOS kernel and cooperative single-threaded task scheduler.
-- Task control blocks and deterministic execution budget auditing.
-- Memory management: 128 KiB internal SRAM static arena, fixed memory pools (16B, 64B, 256B).
-- Power-loss safe block-based VFS (`osfs`) with atomic commit markers.
-- Decoupled kernel event bus (64-slot ring buffer).
-- Bluetooth LE HID keyboard emulation and macro parser.
-- Wi-Fi passive metadata diagnostics (strictly no credential/PMKID harvesting).
-- Network diagnostic state machine (real bounded ICMP & TCP port probes; no fabricated values).
-- Retro games engine (Space Micro-Lander physics, fuel, gravity, and collision simulation @ 60 Hz).
-- SLVR/1 binary protocol service, command dispatcher, and telemetry stream.
-- Fault auditing and hardware Task Watchdog Timer (TWDT) recovery.
+### ESP32-S3 Responsibilities
 
-### Mac Browser Responsibilities:
-- Graphical desktop interface with floating application windows and taskbar.
-- 60 FPS HTML5 Canvas vector renderer for Space Micro-Lander.
-- Interactive Developer Terminal (`root@sliver:~#`) with controlled commands.
-- Real-time Device Monitor (CPU usage, scheduler tick, arena/PSRAM memory, VFS storage).
-- Official ESP32-S3 ROM bootloader firmware flasher with SHA-256 pre-verification.
-- Built-in In-Browser Hardware Simulator (`SIMULATED DEVICE` mode) for off-hardware testing.
+- SliverOS kernel and cooperative application scheduler.
+- Task control blocks and execution-budget auditing.
+- 128 KiB internal SRAM arena and fixed memory pools.
+- Block-based OSFS/VFS storage.
+- Kernel event bus and fault management.
+- Bluetooth LE HID keyboard emulation and macro execution.
+- Wi-Fi passive metadata diagnostics.
+- Authorized network diagnostics with bounded ICMP/TCP checks.
+- Retro game logic and state generation.
+- SLVR/1 protocol service and telemetry.
+- Watchdog/recovery handling.
 
----
+### Mac Browser Responsibilities
 
-## 2. The Four Applications
+- Desktop-style graphical interface.
+- Application windows and launcher.
+- Developer terminal.
+- Real-time device monitor.
+- Logs and diagnostics.
+- Firmware installation.
+- Web Serial device connection and permission flow.
+- Retro-game Canvas rendering from compact ESP32 game state.
+- Simulated-device mode for off-hardware development.
 
-1. **BLE-HID Macro**:
-   - Runs on ESP32-S3: parses macro scripts stored in VFS, outputs Bluetooth LE HID reports.
-   - Web Host displays macro listings, execution logs, and trigger buttons.
-2. **Wi-Fi Diagnostics**:
-   - Runs on ESP32-S3: passive promiscuous frame metadata classification (beacons, probe requests, data traffic).
-   - Strictly passive; no PMKID extraction, deauthentication, or password harvesting.
-3. **Network Diagnostics**:
-   - Runs on ESP32-S3: authorized local ICMP reachability checks and TCP port probes (22, 80, 443).
-   - Reports real measured network latency (zero fabricated metrics).
-4. **Retro Games (Space Micro-Lander)**:
-   - Runs on ESP32-S3: fixed-point physics, thruster simulation, fuel consumption, and collision detection.
-   - Streams compact `SLVR_MSG_GAME_STATE` frames to Web Host.
-   - Web Host renders smooth 60 FPS vector visuals on HTML5 Canvas.
+The browser is the host interface; it does not replace SliverOS execution on the ESP32-S3.
 
 ---
 
-## 3. Directory Structure
+## The Four Applications
+
+1. **BLE-HID Macro** — BLE keyboard emulation and VFS-backed macro playback.
+2. **Wi-Fi Diagnostics** — passive Wi-Fi metadata diagnostics. No PMKID or credential harvesting.
+3. **Network Diagnostics** — authorized local-network reachability and bounded service diagnostics.
+4. **Retro Games** — game logic on the ESP32-S3 with compact state/input exchange to the browser.
+
+---
+
+## Mac Web Host
+
+### Connection flow
 
 ```text
-microkernel-esp32/
-├── CMakeLists.txt              # ESP-IDF Root CMake build configuration
-├── sdkconfig.defaults          # ESP32-S3 8MB Flash & Octal PSRAM configuration
-├── partitions.csv              # 8MB Flash layout with A/B OTA & 2.6MB osfs
-├── os/
-│   ├── main/main.c             # Boot orchestrator & task registration
-│   ├── kernel/                 # Executive, scheduler, arena, pools, event bus, faults
-│   ├── hal/                    # Hardware Abstraction Layer (timer, GPIO, Wi-Fi, BLE)
-│   ├── vfs/                    # Block storage layer, wear-leveling, commit markers
-│   ├── protocol/               # SLVR/1 binary framing encoder/decoder & USB service
-│   └── apps/
-│       ├── ble_hid/            # App 0: BLE Keyboard & Macro Parser
-│       ├── wifi_diagnostics/   # App 1: Passive 802.11 Frame Auditor
-│       ├── network_diagnostics/# App 2: Non-blocking Port/Ping State Machine
-│       └── retro_games/        # App 3: Space Micro-Lander Game Engine
-├── flasher/                    # Web Host desktop interface, simulator, flasher
-│   ├── src/
-│   │   ├── protocol/           # SLVR/1 JS protocol parser, client, and simulator
-│   │   ├── ui/                 # HTML5 Canvas vector game renderer
-│   │   ├── flashing/           # Bootloader flash manager and firmware verification
-│   │   ├── serial/             # Web Serial API driver
-│   │   └── main.js             # Web Host master desktop orchestrator
-│   └── test/                   # Web Host protocol and manifest unit tests
-├── tests/                      # 12 host-native C unit test suites
-└── docs/                       # Architectural and hardware specifications
-    ├── ARCHITECTURE.md         # Full system architecture
-    ├── HOST_PROTOCOL.md        # SLVR/1 binary protocol specification
-    ├── WEB_HOST.md             # Web Host desktop and simulator details
-    ├── HARDWARE_VALIDATION.md  # 25-point hardware test matrix
-    ├── BUILD.md                # Build instructions for firmware, tests, web
-    ├── FLASHING.md             # Firmware flashing guide
-    └── TROUBLESHOOTING.md      # Hardware and connection troubleshooting
+Connect 7Semi ESP32-S3 by USB
+            ↓
+Open SliverOS Web Host
+            ↓
+Click "Connect Device"
+            ↓
+Browser Web Serial permission dialog
+            ↓
+Select ESP32-S3
+            ↓
+SLVR/1 handshake
+            ↓
+SliverOS desktop appears
 ```
+
+The target development browser is Chrome/Chromium with Web Serial support.
+
+There is **no physical TFT/OLED display requirement** and no framebuffer-to-SPI display path in the intended host architecture.
 
 ---
 
-## 4. Verification & Testing
+## Verification & Testing
 
-### Host-Native C Test Suite (12 Suites, 100% Pass Rate):
+### Host-Native C Test Suite
+
 ```bash
 make -C tests clean
 make -C tests
 ```
-Runs: Memory Manager, Fixed Pools, Event Bus, Cooperative Scheduler, State Machine, Macro Parser, VFS Block Storage, VFS Power-Loss Safe Recovery, Wi-Fi Metadata Classifier, Network Diagnostics State Machine, Space Micro-Lander Physics, and SLVR/1 Protocol (including 200,000-iteration parser fuzz testing).
 
-### Web Host & Protocol Tests (15 Tests, 100% Pass Rate):
+### Web Host
+
 ```bash
 cd flasher
 npm test
 npm run build
 ```
-Validates SHA-256 verification, strict target compatibility, SLVR/1 framing, CRC16-CCITT determinism, stream parser resynchronization, and generates the production Vite bundle.
+
+### ESP32-S3
+
+Build and verify the bootloader, partition table, application image, map file, memory placement, Flash geometry, PSRAM configuration, and OTA sizing before treating a build as release-ready.
+
+Do not mark hardware-only tests as passed without physical evidence.
+
+---
+
+## Physical Hardware Test / Experiment Evidence
+
+The supplied photographs document the actual **7Semi ESP32-S3 development board** used as the SliverOS development target and the USB-connected bench setup with the Mac.
+
+**Evidence record:** [`docs/hardware/BOARD_PHOTO_TEST_20260925.md`](./docs/hardware/BOARD_PHOTO_TEST_20260925.md)
+
+The photographs are physical setup evidence only. They do **not** by themselves prove firmware, protocol, scheduler, application, or release-readiness tests.
+
+---
+
+## Repository Structure
+
+```text
+SliverOS/
+├── os/
+│   ├── main/
+│   ├── kernel/
+│   ├── hal/
+│   ├── vfs/
+│   ├── protocol/
+│   └── apps/
+│       ├── ble_hid/
+│       ├── wifi_diagnostics/
+│       ├── network_diagnostics/
+│       └── retro_games/
+├── flasher/                    # Web Host + installer
+├── tests/
+├── tools/
+├── scripts/
+└── docs/
+    ├── ARCHITECTURE.md
+    ├── HOST_PROTOCOL.md
+    ├── WEB_HOST.md
+    ├── HARDWARE_VALIDATION.md
+    └── hardware/
+        └── BOARD_PHOTO_TEST_20260925.md
+```
+
+---
+
+## Safety & Scope
+
+SliverOS is intended for embedded development, authorized diagnostics, defensive security learning, and controlled lab environments.
+
+Network functionality is deliberately bounded and excludes credential harvesting, PMKID capture, password cracking, deauthentication, exploitation automation, and unrestricted attack functionality.
+
+---
+
+## Project Status
+
+| Area | Status |
+|---|---|
+| 7Semi ESP32-S3 target | 🟢 Defined |
+| Cooperative executive | 🟢 Implemented / hardened in stages |
+| Mac Web Host architecture | 🟢 Defined |
+| Web Serial integration | 🟡 Integration / hardware validation required |
+| Four-application model | 🟢 Defined |
+| Network diagnostics | 🟡 Hardware validation required |
+| Web Flasher | 🟡 Online; physical flashing validation required |
+| Physical hardware photo evidence | 🟢 Recorded |
+| Full physical hardware validation | 🔴 Pending |
+| Release readiness | 🔴 Pending mandatory CI and hardware gates |
+
+## Documentation
+
+- [`docs/ARCHITECTURE_ENFORCEMENT.md`](./docs/ARCHITECTURE_ENFORCEMENT.md)
+- [`docs/HARDWARE_VALIDATION.md`](./docs/HARDWARE_VALIDATION.md)
+- [`docs/hardware/BOARD_PHOTO_TEST_20260925.md`](./docs/hardware/BOARD_PHOTO_TEST_20260925.md)
+- [`VERCEL.md`](./VERCEL.md)
