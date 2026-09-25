@@ -1,6 +1,6 @@
 /**
  * dashboard.js
- * Main UI coordinator for the MicroKernel OS Web Serial Flasher.
+ * Main UI coordinator for the beginner-first SliverOS Web Serial Flasher.
  */
 
 import { WebSerialPort } from '../serial/webserial.js';
@@ -20,8 +20,8 @@ export class Dashboard {
     this.targetConfig = null;
     this.preparedImages = null;
     this.loader = null;
+    this.transport = null;
 
-    // UI Bindings
     this.console = new ConsoleUI(document.getElementById('consoleOutput'));
     this.progress = new ProgressUI(
       document.getElementById('barOverall'),
@@ -39,7 +39,6 @@ export class Dashboard {
     this.btnDisconnect = document.getElementById('btnDisconnect');
     this.btnFlash = document.getElementById('btnFlash');
     this.selBaud = document.getElementById('selBaudrate');
-
     this.valChipFamily = document.getElementById('valChipFamily');
     this.valChipRev = document.getElementById('valChipRev');
     this.valFlashSize = document.getElementById('valFlashSize');
@@ -49,29 +48,24 @@ export class Dashboard {
 
   async init() {
     this.bindEvents();
-    this.console.log('[INFO] MicroKernel OS Flasher initialized.');
+    this.console.log('[INFO] SliverOS Flasher initialized.');
 
     if (!this.serial.isSupported()) {
-      this.console.log('[ERROR] Web Serial API is NOT supported in this browser. Please use Chrome or Edge.', 'ERROR');
-      this.notifications.setStatus('ERROR', 'Web Serial unavailable. Please switch to a Chromium browser.');
+      this.notifications.setStatus('ERROR', 'Web Serial is unavailable. Use Chrome or Edge on a desktop.');
       this.btnConnect.disabled = true;
       return;
     }
 
     try {
-      this.console.log('[INFO] Loading firmware release catalog...');
       await this.manifestMgr.load();
       const rel = this.manifestMgr.getLatestRelease();
-      this.console.log(`[INFO] Loaded release v${rel.version} (${Object.keys(rel.targets).join(', ')})`);
+      this.console.log(`[INFO] Firmware catalog loaded: v${rel.version}`);
       document.getElementById('appVersionBadge').textContent = `v${rel.version}`;
-    } catch (e) {
-      this.console.log(`[WARN] Manifest load note: ${e.message}`, 'WARN');
+    } catch (error) {
+      this.console.log(`[WARN] Firmware catalog unavailable: ${error.message}`, 'WARN');
     }
 
-    // Register disconnect listener
-    this.serial.onDisconnect((err) => {
-      this.handleDisconnect(err.message);
-    });
+    this.serial.onDisconnect((err) => this.handleDisconnect(err.message));
   }
 
   bindEvents() {
@@ -79,7 +73,6 @@ export class Dashboard {
     this.btnDisconnect.addEventListener('click', () => this.handleManualDisconnect());
     this.btnFlash.addEventListener('click', () => this.handleFlash());
 
-    // Console filters
     document.querySelectorAll('.btn-filter').forEach(btn => {
       btn.addEventListener('click', (e) => {
         document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
@@ -87,64 +80,56 @@ export class Dashboard {
         this.console.setFilter(e.target.dataset.filter);
       });
     });
-
-    document.getElementById('btnClearConsole').addEventListener('click', () => {
-      this.console.clear();
-    });
+    document.getElementById('btnClearConsole').addEventListener('click', () => this.console.clear());
   }
 
   async handleConnect() {
     try {
-      this.notifications.setStatus('CONNECTING', 'Requesting serial port authorization...');
+      this.notifications.setStatus('CONNECTING', 'Choose your ESP32-S3 USB device...');
       this.btnConnect.disabled = true;
-
       await this.serial.requestPort();
-      const baud = parseInt(this.selBaud.value, 10) || 115200;
 
+      const baud = parseInt(this.selBaud.value, 10) || 115200;
       const detector = new DeviceDetector(this.serial, (msg) => this.console.log(msg));
       const res = await detector.connectAndDetect(baud);
 
       this.detectedChip = res.chip;
       this.loader = res.loader;
+      this.transport = res.transport;
 
-      // Update UI
       this.valChipFamily.textContent = res.displayName;
       this.valChipRev.textContent = `Revision ${res.chip.revision}`;
       this.valFlashSize.textContent = res.chip.flashSize;
-      this.valMacAddress.textContent = 'Auto-configured';
+      this.valMacAddress.textContent = 'Detected by ROM';
 
-      // Match target configuration from manifest
       this.targetConfig = this.manifestMgr.getTargetConfig(res.chip.targetKey);
       if (!this.targetConfig) {
-        throw new Error(`Target ${res.chip.family} is not supported in the current release manifest.`);
+        throw new Error('No compatible SliverOS ESP32-S3 firmware release is published yet.');
       }
 
-      this.valTargetFirmware.textContent = `MicroKernel OS 1.0.0 (${this.targetConfig.chip})`;
-      this.notifications.setStatus('READY', `Device ready: ${res.displayName}. Click 'Install MicroKernel OS'.`);
+      this.valTargetFirmware.textContent = `SliverOS ${this.targetConfig.version || 'latest'} (${this.targetConfig.chip})`;
+      this.notifications.setStatus('READY', 'ESP32-S3 ready. Click Install SliverOS.');
       this.btnDisconnect.disabled = false;
       this.btnFlash.disabled = false;
-
-      this.console.log(`[INFO] Device verified successfully. Compatible firmware target: ${this.targetConfig.chip}`);
-    } catch (err) {
-      this.console.log(`[ERROR] Connection failed: ${err.message}`, 'ERROR');
-      this.notifications.setStatus('ERROR', err.message);
+      this.console.log('[INFO] ESP32-S3 ROM connection and compatibility check passed.');
+    } catch (error) {
+      this.console.log(`[ERROR] Connection failed: ${error.message}`, 'ERROR');
+      this.notifications.setStatus('ERROR', error.message);
+      await this.closeTransport();
       this.handleDisconnect();
     }
   }
 
   async handleFlash() {
-    if (!this.targetConfig || !this.loader) {
-      return;
-    }
+    if (!this.targetConfig || !this.loader) return;
 
     try {
       this.btnFlash.disabled = true;
       this.btnDisconnect.disabled = true;
-      this.notifications.setStatus('FLASHING', 'Flashing MicroKernel OS to ESP32 flash memory...');
+      this.notifications.setStatus('FLASHING', 'Installing SliverOS... Do not unplug the board.');
 
       const firmwareMgr = new FirmwareManager('./firmware/', (msg) => this.console.log(msg));
       this.preparedImages = await firmwareMgr.fetchAndPrepareImages(this.targetConfig);
-
       this.progress.setupImages(this.preparedImages);
 
       const flashMgr = new FlashManager(
@@ -153,23 +138,35 @@ export class Dashboard {
         (telemetry) => this.progress.update(telemetry)
       );
 
-      await flashMgr.flash(this.preparedImages, this.detectedChip);
-
-      this.notifications.setStatus('READY', 'MicroKernel OS flashed successfully! Device running.');
-      this.console.log('[INFO] Installation complete! The ESP32 executive is active and running.');
-    } catch (err) {
-      this.console.log(`[ERROR] Flashing aborted: ${err.message}`, 'ERROR');
-      this.notifications.setStatus('ERROR', `Flashing failed: ${err.message}`);
+      await flashMgr.flash(this.preparedImages, this.detectedChip, this.targetConfig);
+      this.notifications.setStatus('READY', 'SliverOS installed. The ESP32-S3 is rebooting.');
+      this.console.log('[INFO] Installation complete. USB may now be disconnected.');
+    } catch (error) {
+      this.console.log(`[ERROR] Installation failed: ${error.message}`, 'ERROR');
+      this.notifications.setStatus('ERROR', `Installation failed: ${error.message}`);
     } finally {
       this.btnFlash.disabled = false;
       this.btnDisconnect.disabled = false;
     }
   }
 
+  async closeTransport() {
+    try {
+      if (this.transport && typeof this.transport.disconnect === 'function') {
+        await this.transport.disconnect();
+      }
+    } catch (error) {
+      this.console.log(`[WARN] USB disconnect cleanup: ${error.message}`, 'WARN');
+    }
+    this.transport = null;
+    this.loader = null;
+  }
+
   async handleManualDisconnect() {
-    this.console.log('[INFO] Closing serial port connection...');
-    await this.serial.close();
-    this.handleDisconnect('Serial port disconnected by user.');
+    this.console.log('[INFO] Disconnecting ESP32-S3...');
+    await this.closeTransport();
+    this.serial.port = null;
+    this.handleDisconnect('Device disconnected by user.');
   }
 
   handleDisconnect(msg = 'Device disconnected.') {
@@ -177,15 +174,13 @@ export class Dashboard {
     this.btnConnect.disabled = false;
     this.btnDisconnect.disabled = true;
     this.btnFlash.disabled = true;
-
     this.valChipFamily.textContent = '—';
     this.valChipRev.textContent = '—';
     this.valFlashSize.textContent = '—';
     this.valMacAddress.textContent = '—';
     this.valTargetFirmware.textContent = '—';
-
     this.detectedChip = null;
-    this.loader = null;
     this.targetConfig = null;
+    this.preparedImages = null;
   }
 }
