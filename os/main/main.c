@@ -1,6 +1,6 @@
 /**
  * @file main.c
- * @brief Primary boot orchestrator for MicroKernel OS on ESP32-S3-DevKitC-1.
+ * @brief Primary boot orchestrator for SliverOS on 7Semi ESP32-S3-Dev-BoardC-1U-N8R8.
  * Pure startup sequence orchestrator; zero application logic.
  */
 
@@ -10,13 +10,13 @@
 #include "event_bus.h"
 #include "hal.h"
 #include "vfs.h"
-#include "ui/ui_runtime.h"
+#include "protocol/protocol_service.h"
 #include "ble_hid.h"
 #include "wifi_diagnostics.h"
 #include "network_diagnostics.h"
 #include "retro_games.h"
 
-#define TASK_ID_UI_RUNTIME  0U
+#define TASK_ID_HOST_PROTO  0U
 #define TASK_ID_BLE_HID     1U
 #define TASK_ID_WIFI_DIAG   2U
 #define TASK_ID_NET_DIAG    3U
@@ -29,16 +29,18 @@ static void print_diagnostic_banner(void)
 
     printf("\n");
     printf("====================================================\n");
-    printf("        MicroKernel OS - ESP32-S3 Executive         \n");
+    printf("        SliverOS - ESP32-S3 Runtime Executive       \n");
     printf("====================================================\n");
-    printf("  Target Platform:     %s (DevKitC-1 Primary)\n", diag.chip_family);
-    printf("  Silicon Revision:    %u\n", diag.chip_revision);
-    printf("  SPI Flash Capacity:  %u MB\n", diag.flash_size_bytes / (1024U * 1024U));
-    printf("  External PSRAM:      %u MB\n", diag.psram_size_bytes / (1024U * 1024U));
+    printf("  Target Platform:     7Semi ESP32-S3-Dev-BoardC-1U-N8R8\n");
+    printf("  Silicon Architecture:%s Revision %u\n", diag.chip_family, diag.chip_revision);
+    printf("  SPI Flash Capacity:  %u MB (Octal SPI)\n", diag.flash_size_bytes / (1024U * 1024U));
+    printf("  External PSRAM:      %u MB (Octal SPI)\n", diag.psram_size_bytes / (1024U * 1024U));
     printf("  Internal SRAM Total: %u KB (Free: %u KB)\n",
            (unsigned)(diag.internal_sram_total / 1024U), (unsigned)(diag.internal_sram_free / 1024U));
     printf("  Static Arena Heap:   %u KB (Internal SRAM Only)\n", MK_ARENA_SIZE / 1024U);
     printf("  Fixed Memory Pools:  16B, 32B, 64B, 128B, 256B (Internal SRAM)\n");
+    printf("  Host Protocol:       SLVR/1 over Native USB Serial/JTAG\n");
+    printf("  Web Host Interface:  Vercel Browser Desktop (No Physical Display)\n");
     printf("  Firmware Version:    %s\n", diag.version);
     printf("  Build Identifier:    %s (%s)\n", diag.build_id, diag.git_revision);
     printf("  Cooperative Tasks:   5 / %u\n", MK_MAX_TASKS);
@@ -108,10 +110,10 @@ void app_main(void)
     /* Print diagnostic system banner and memory map */
     print_diagnostic_banner();
 
-    /* 9. Initialize Graphical OS Runtime & Display Manager */
-    status = ui_runtime_init();
+    /* 9. Initialize SliverOS Host Protocol Service over Native USB Serial/JTAG */
+    status = protocol_service_init();
     if (status != MK_STATUS_OK) {
-        printf("[WARN] UI Runtime initialized with fallback: %d\n", status);
+        printf("[WARN] Host Protocol service initialized with fallback: %d\n", status);
     }
 
     /* 10. Initialize Application Modules */
@@ -127,8 +129,8 @@ void app_main(void)
     (void)mk_kernel_register_app(MK_APP_RETRO_GAMES, "RETRO_GAMES", TASK_ID_GAMES);
 
     /* 12. Register Cooperative Tasks into Scheduler */
-    (void)mk_task_register(kernel, TASK_ID_UI_RUNTIME, "ui_runtime",
-                           ui_runtime_task, NULL, MK_TASK_PRIO_HIGH, 3U);
+    (void)mk_task_register(kernel, TASK_ID_HOST_PROTO, "host_proto",
+                           protocol_service_task, NULL, MK_TASK_PRIO_HIGHEST, 1U);
 
     (void)mk_task_register(kernel, TASK_ID_BLE_HID, "ble_hid",
                            ble_hid_task, NULL, MK_TASK_PRIO_HIGH, 1U);

@@ -3,7 +3,7 @@ CFLAGS = -Wall -Wextra -Werror -std=c11 -O2 -DMK_HOST_TEST=1 \
          -I../os/kernel \
          -I../os/hal \
          -I../os/vfs \
-         -I../os/ui \
+         -I../os/protocol \
          -I../os/apps/ble_hid \
          -I../os/apps/wifi_diagnostics \
          -I../os/apps/network_diagnostics \
@@ -21,6 +21,7 @@ SRCS = test_runner.c \
        test_wifi_classification.c \
        test_net_state_machine.c \
        test_game_physics.c \
+       test_host_protocol.c \
        ../os/kernel/kernel.c \
        ../os/kernel/scheduler.c \
        ../os/kernel/state_machine.c \
@@ -30,18 +31,19 @@ SRCS = test_runner.c \
        ../os/kernel/event_bus.c \
        ../os/hal/hal_timer.c \
        ../os/hal/hal_gpio.c \
-       ../os/hal/hal_spi.c \
        ../os/hal/hal_wifi.c \
        ../os/hal/hal_ble.c \
        ../os/vfs/vfs.c \
        ../os/vfs/vfs_block.c \
        ../os/vfs/vfs_log.c \
+       ../os/protocol/host_protocol.c \
+       ../os/protocol/protocol_service.c \
        ../os/apps/ble_hid/macro_parser.c \
+       ../os/apps/ble_hid/ble_hid.c \
        ../os/apps/wifi_diagnostics/wifi_diagnostics.c \
        ../os/apps/network_diagnostics/network_diagnostics.c \
        ../os/apps/retro_games/retro_games.c \
-       ../os/apps/retro_games/input.c \
-       ../os/apps/retro_games/renderer.c
+       ../os/apps/retro_games/input.c
 
 TARGET = test_runner
 

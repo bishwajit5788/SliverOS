@@ -16,11 +16,12 @@ extern void run_vfs_recovery_tests(void);
 extern void run_wifi_classification_tests(void);
 extern void run_net_state_machine_tests(void);
 extern void run_game_physics_tests(void);
+extern void test_host_protocol(void);
 
 int main(void)
 {
     printf("\n===================================================\n");
-    printf("     MicroKernel OS Host-Native Test Suite         \n");
+    printf("        SliverOS Host-Native Test Suite            \n");
     printf("===================================================\n\n");
 
     test_memory_manager();
@@ -34,9 +35,10 @@ int main(void)
     run_wifi_classification_tests();
     run_net_state_machine_tests();
     run_game_physics_tests();
+    test_host_protocol();
 
     printf("\n===================================================\n");
-    printf("  >>> ALL 11 HOST UNIT TEST SUITES PASSED (100%%) <<< \n");
+    printf("  >>> ALL 12 HOST UNIT TEST SUITES PASSED (100%%) <<< \n");
     printf("===================================================\n\n");
     return 0;
 }

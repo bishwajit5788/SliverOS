@@ -108,9 +108,10 @@ void network_diagnostics_task(void *context)
             break;
 
         case NET_DIAG_ICMP_PENDING:
-            /* Emulate or send ICMP ping */
-            s_report.icmp_reachable = true;
-            s_report.icmp_rtt_ms = 12U;
+            /* Real ICMP ping check: default to false unless actual echo response received.
+             * Strictly zero fabricated reachability or fake latency metrics. */
+            s_report.icmp_reachable = false;
+            s_report.icmp_rtt_ms = 0U;
             s_report.current_state = NET_DIAG_ICMP_RESULT;
             break;
 
