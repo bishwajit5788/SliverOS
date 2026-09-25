@@ -91,6 +91,28 @@ void test_host_protocol(void)
     assert(frame_ready);
     assert(frame_rx.type == SLVR_CMD_GET_INFO);
 
+    /* 5b. Protocol Parser Fuzz Testing (Fuzz stream of 200,000 pseudo-random bytes & corrupted frames) */
+    slvr_parser_init(&parser);
+    uint32_t lfsr = 0xACE1ACE1U;
+    for (uint32_t i = 0; i < 200000U; i++) {
+        /* Galois LFSR for deterministic, high-speed pseudo-random stream */
+        uint32_t bit = ((lfsr >> 0) ^ (lfsr >> 2) ^ (lfsr >> 3) ^ (lfsr >> 5)) & 1U;
+        lfsr = (lfsr >> 1) | (bit << 31);
+        uint8_t byte = (uint8_t)(lfsr & 0xFFU);
+
+        /* Parser must never crash, exceed bounds, or enter unrecoverable state */
+        (void)slvr_parser_feed_byte(&parser, byte, &frame_rx);
+    }
+    /* Verify parser can still receive a valid frame after 200,000 fuzz bytes */
+    frame_ready = false;
+    for (size_t i = 0; i < wire_len; i++) {
+        if (slvr_parser_feed_byte(&parser, wire_buf[i], &frame_rx)) {
+            frame_ready = true;
+        }
+    }
+    assert(frame_ready);
+    assert(frame_rx.type == SLVR_CMD_GET_INFO);
+
     /* 6. Protocol Service Command Handshake Integration */
     assert(protocol_service_init() == MK_STATUS_OK);
     protocol_service_reset_mock();
