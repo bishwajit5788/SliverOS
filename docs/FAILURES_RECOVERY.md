@@ -29,5 +29,5 @@ MicroKernel OS categorizes all software and hardware runtime exceptions into thr
 ## Containment Rules
 
 1. **Subsystem Isolation**: A crash or buffer exhaustion in an application (e.g. Retro Games or Network Diag) CANNOT corrupt the kernel scheduler or memory allocator.
-2. **Degraded Mode Execution**: If the SPI display or VFS flash partition fails during boot, MicroKernel OS will still boot into degraded mode rather than halting immediately, allowing diagnostics over the Native USB serial console.
-3. **Fault Telemetry Preservation**: Prior to any controlled reset, fault records are committed to the 32-slot static ring buffer. On subsequent boot, previous-fault telemetry is retrieved and displayed on the developer diagnostics screen.
+2. **Degraded Mode Execution**: If the VFS flash partition fails during boot, SliverOS will still boot into degraded mode rather than halting immediately, allowing diagnostics over the Native USB serial link.
+3. **Fault Telemetry Preservation**: Prior to any controlled reset, fault records are committed to the 32-slot static ring buffer. On subsequent boot, previous-fault telemetry is retrieved and reported over the SLVR/1 host protocol to the Web Host.

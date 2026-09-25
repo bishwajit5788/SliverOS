@@ -1,79 +1,98 @@
-# Building MicroKernel OS
+# Building SliverOS
 
-This document details the build processes for both target ESP32 hardware firmware and host unit test environments.
+This document details the build processes for the ESP32-S3 firmware, the host-native unit test suites, and the Vercel-hosted Web Host desktop environment.
 
 ---
 
-## 1. Building Firmware with ESP-IDF
+## 1. Target Hardware & Specifications
+
+- **Target Board**: **7Semi ESP32-S3-Dev-BoardC-1U-N8R8**
+- **Module**: ESP32-S3-WROOM-1 MCN8R8
+- **Target Chip**: `esp32s3`
+- **Flash Memory**: 8 MB Quad/Octal SPI Flash (DIO, 80 MHz)
+- **External PSRAM**: 8 MB Octal SPI PSRAM (`CONFIG_SPIRAM_MODE_OCT=y`)
+- **Native USB**: Hardware USB Serial/JTAG Controller connected via onboard USB-C port
+- **Physical Display**: **None**. The Mac browser serves as the graphical display over Web Serial.
+
+---
+
+## 2. Building Firmware with ESP-IDF
 
 ### Prerequisites
-- ESP-IDF v4.4, v5.0, v5.1, or v5.2 installed and sourced.
-- Python 3.8+ with standard ESP-IDF virtual environment.
+- ESP-IDF v5.2 installed and sourced in your shell:
+  ```bash
+  . $HOME/esp/esp-idf/export.sh
+  ```
+- Python 3.8+ with standard ESP-IDF dependencies.
 
-### Target Selection & Configuration
-Configure target architecture (ESP32, ESP32-C3, or ESP32-S3):
+### Target Selection & Build
 ```bash
-# Sourcing ESP-IDF environment
-. $HOME/esp/esp-idf/export.sh
+# Ensure target silicon is set to ESP32-S3
+idf.py set-target esp32s3
 
-# Set chip target
-idf.py set-target esp32
-# or: idf.py set-target esp32c3
-# or: idf.py set-target esp32s3
-```
-
-### Compilation
-```bash
+# Compile the bootloader, partition table, and SliverOS executive
 idf.py build
 ```
 
-This compiles:
-1. `build/bootloader/bootloader.bin` (First-stage bootloader, loaded at offset `0x1000` or `0x0000`)
-2. `build/partition_table/partition-table.bin` (Custom partition map from `partitions.csv`, offset `0x8000`)
-3. `build/microkernel-esp32.bin` (MicroKernel OS application binary, offset `0x10000`)
+### Build Artifacts & Memory Offsets
+| Artifact | Flash Offset | Description |
+|---|---|---|
+| `build/bootloader/bootloader.bin` | `0x0000` | ESP32-S3 ROM-compatible first-stage bootloader |
+| `build/partition_table/partition-table.bin` | `0x8000` | Custom partition table (8 MB Flash layout) |
+| `build/microkernel-esp32.bin` | `0x20000` | SliverOS application binary (fits within 2.5MB OTA slot) |
+
+> [!IMPORTANT]
+> The SliverOS application starts at flash offset **`0x20000`** (the `ota_0` partition), **NOT** `0x10000`.
 
 ---
 
-## 2. Packaging Firmware for the Web Flasher
+## 3. Running Host Unit Tests (Host-Native C)
 
-After a successful ESP-IDF build, run the packaging script:
-```bash
-python3 scripts/package_firmware.py --build-dir build/ --target esp32 --version 1.0.0
-```
-
-This command:
-- Computes SHA-256 cryptographic digests of each binary image.
-- Copies the images into `flasher/public/firmware/`.
-- Updates `firmware/manifests/releases.json` and copies it into the Web Flasher distribution directory.
-
-To generate standalone development binaries without an active ESP-IDF installation:
-```bash
-python3 scripts/package_firmware.py --generate-sample --target all
-```
-
----
-
-## 3. Running Host Unit Tests
-
-The core executive, scheduler, static arena memory allocator, state machine, macro parser, and VFS block storage can be verified natively on macOS or Linux without needing target hardware or an ESP-IDF cross-compiler:
+The core SliverOS executive, cooperative scheduler, memory manager, fixed pools, event bus, VFS block storage with power-loss recovery, application lifecycles, and SLVR/1 protocol engine can be compiled and executed natively on macOS (Apple Silicon/Intel) or Linux without requiring ESP-IDF or hardware:
 
 ```bash
-make -C tests
-```
-
-To clean test artifacts:
-```bash
+# Clean and compile all 12 test suites with Clang/GCC
 make -C tests clean
+make -C tests
+
+# Or run the compiled test runner directly:
+./tests/test_runner
 ```
+
+### Verified Test Suites (100% Pass Rate):
+1. Memory Manager Static Arena Unit Tests
+2. Fixed-Size Memory Pool (16B, 64B, 256B) Tests
+3. Kernel Event Bus Decoupled Ring Buffer Tests
+4. Cooperative Scheduler Priority & Round-Robin Tests
+5. State Machine Transition Tests
+6. Macro Parser Tokenization Tests
+7. VFS Block Storage Allocation & Read/Write Tests
+8. VFS Power-Loss Safe Atomic Commit & Recovery Tests
+9. Wi-Fi Frame Metadata Classification Tests
+10. Network Diagnostics Bounded State Machine Tests
+11. Space Micro-Lander Physics & Collision Tests
+12. SLVR/1 Binary Protocol Framing, Parsing & Fuzz Tests (200,000 iterations)
 
 ---
 
-## 4. Building the Web Flasher
+## 4. Building the SliverOS Web Host
+
+The Web Host frontend is built with Node.js and bundled with Vite:
 
 ```bash
 cd flasher
+
+# Install dependencies
 npm install
+
+# Run Web Host unit tests (manifest, target checks, SLVR/1 frame & stream parser)
+npm test
+
+# Build production bundle for Vercel deployment
 npm run build
+
+# Start local development server
+npm run dev
 ```
 
-This bundles the static HTML, CSS, and ES modules into `flasher/dist/` with zero server dependencies.
+Output directory: `flasher/dist/` (contains standalone `index.html` and bundled assets ready for Vercel hosting).

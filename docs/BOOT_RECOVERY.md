@@ -34,9 +34,9 @@ MicroKernel OS operates on top of the immutable silicon ROM bootloader provided 
    - `mk_memory_init()`: Configures 128KB static arena in Internal SRAM
    - `mk_pool_init()`: Sets up fixed pools (16B, 32B, 64B, 128B, 256B)
    - `mk_event_bus_init()`: Allocates 64-event static ring buffer
-   - `hal_init()`: Configures GPIOs, SPI display, Timer
+   - `hal_init()`: Configures GPIOs, Timer, Native USB Serial/JTAG
    - `vfs_init()`: Mounts `osfs` partition, validates commit markers
-   - `ui_runtime_init()`: Launches Graphical App Launcher
+   - `protocol_service_init()`: Initializes SLVR/1 Host Protocol Service
    - `app_register_all()`: Registers 4 applications
    - `mk_kernel_run()`: Enters non-preemptive cooperative round-robin loop
 ```

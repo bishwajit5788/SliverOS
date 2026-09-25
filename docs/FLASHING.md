@@ -1,64 +1,87 @@
-# Web Serial Flashing Guide
+# SliverOS Firmware Flashing Guide
 
-This document explains how to flash MicroKernel OS directly from a Chromium-based browser to an ESP32 development board.
-
----
-
-## 1. Hardware Setup
-
-1. Connect your ESP32 board to your computer using a **micro-USB or USB-C data cable**.
-   > [!CAUTION]
-   > Ensure your USB cable has internal data wires (D+/D-). Many consumer cables are power/charge-only and will not present a USB serial device to your operating system.
-2. Confirm the USB UART bridge driver is recognized:
-   - macOS: `/dev/cu.usbserial-*` or `/dev/cu.wchusbserial*`
-   - Linux: `/dev/ttyUSB0` or `/dev/ttyACM0`
-   - Windows: `COM3`, `COM4`, etc.
+This document details the flashing procedure for the **7Semi ESP32-S3-Dev-BoardC-1U-N8R8** using the built-in Web Serial flasher or standard ESP-IDF tooling.
 
 ---
 
-## 2. In-Browser Flashing Workflow
+## 1. Target Hardware & Physical Connection
 
-1. Open the Web Serial Flasher in Google Chrome, Microsoft Edge, or Opera:
-   ```bash
-   cd flasher && npm run dev
-   ```
-   Navigate to `http://localhost:3000`.
+- **Target Board**: **7Semi ESP32-S3-Dev-BoardC-1U-N8R8**
+- **Silicon**: ESP32-S3-WROOM-1 MCN8R8 (8 MB Flash, 8 MB Octal PSRAM)
+- **USB Interface**: Native USB Serial/JTAG Controller connected via onboard USB-C port
+- **Host System**: Mac running macOS (Apple Silicon or Intel)
+- **Known Working Port**: `/dev/cu.usbmodem101`
 
-2. Click **CONNECT DEVICE**.
-   - A browser permission dialog will appear listing available USB serial devices.
-   - Select your ESP32 board and click **Connect**.
-
-3. Automatic Detection & Pre-Flight Checks:
-   - The flasher engages the auto-reset circuit (toggling DTR/RTS) to place the chip into ROM bootloader mode.
-   - Sends `ESP_CMD_SYNC` packets until synchronized.
-   - Reads hardware registers to detect chip family (`ESP32`, `ESP32-C3`, or `ESP32-S3`) and revision.
-   - Verifies flash size and checks target compatibility against `releases.json`.
-   - Pre-verifies SHA-256 cryptographic hashes for all firmware images.
-
-4. Click **INSTALL MICROKERNEL OS**:
-   - The flasher erases target flash sectors (`ESP_CMD_FLASH_BEGIN`).
-   - Streams 4KB blocks with XOR checksums (`ESP_CMD_FLASH_DATA`).
-   - Displays real-time speed (KB/s), transferred bytes, ETA, and per-image progress bars.
-   - Queries hardware-computed MD5 checksums (`ESP_CMD_SPI_FLASH_MD5`) from the ROM bootloader to verify flash integrity.
-
-5. Automatic Reboot:
-   - The flasher pulses RTS to reset the chip into user application mode.
-   - The board boots MicroKernel OS and outputs the diagnostic banner to the serial monitor.
+> [!CAUTION]
+> Always use a certified USB-C data cable. Charge-only cables lack D+/D- signal lines and will not enumerate the Native USB device on macOS.
 
 ---
 
-## 3. Manual Boot Mode Fallback
+## 2. Browser Flashing via SliverOS Web Host
 
-If auto-reset fails to enter the ROM bootloader (e.g. on boards lacking RTS/DTR transistor circuits):
-1. Hold down the **BOOT** (or **IO0**) button on the ESP32 board.
-2. Momentarily press the **EN** (or **RST**) button.
-3. Release the **BOOT** button.
-4. Click **CONNECT DEVICE** in the browser flasher.
+The Web Host includes an integrated, official Espressif ROM bootloader flasher accessible from the sidebar **Flasher** tab:
+
+1. **Connect Hardware**: Plug the 7Semi ESP32-S3 into your Mac using the USB-C cable.
+2. **Open Web Host**: Open the SliverOS Web Host in Google Chrome, Microsoft Edge, or a Chromium-based browser.
+3. **Navigate to Flasher**: Click **Flasher** in the sidebar.
+4. **Trigger Flashing**: Click **INSTALL SLIVEROS FIRMWARE**.
+5. **Grant Port Permission**: When the browser device picker appears, select the `ESP32-S3` or `USB JTAG/serial debug unit`.
+6. **Automatic Bootloader Handshake & Target Validation**:
+   - The flasher asserts DTR/RTS auto-reset signals to enter ROM bootloader mode.
+   - Synchronizes with the silicon ROM over SLIP framing.
+   - Reads hardware registers: confirms `ESP32-S3` revision.
+   - **Target Rejection**: If an incompatible chip (such as ESP32 Classic or ESP32-C3) is detected, the flasher immediately aborts to prevent corrupting the target device.
+7. **Integrity Verification**:
+   - Downloads the firmware binaries defined in `releases.json`.
+   - Rejects test mock fixtures labeled with test banners.
+   - Computes SHA-256 digests over the downloaded binaries and validates against manifest signatures.
+8. **Flash Writing**:
+   - Erases required sectors on the 8 MB flash.
+   - Writes the bootloader to offset `0x0000`.
+   - Writes the partition table to offset `0x8000`.
+   - Writes the SliverOS application binary to offset `0x20000` (`ota_0`).
+   - Verifies written blocks using on-chip hardware MD5 queries.
+9. **Automatic Reset**:
+   - Resets the ESP32-S3 into application mode.
+   - The chip boots SliverOS and begins streaming SLVR/1 protocol telemetry.
 
 ---
 
-## 4. Recommended Link Speeds
+## 3. Flash Memory Offsets Summary (8 MB Flash)
 
-- **115,200 baud**: Highest reliability; recommended for noisy USB hubs or long cables.
-- **460,800 baud**: Default standard speed; full 1.5MB firmware flash completes in ~12 seconds.
-- **921,600 baud**: Ultra-fast; supported by CP2102 and CH9102 bridges.
+| Component | Flash Offset | Partition | Size Allocation |
+|---|---|---|---|
+| First-Stage Bootloader | `0x0000` | N/A (ROM reserved) | ~28 KiB |
+| Partition Table | `0x8000` | N/A | 3 KiB (0x1000 aligned) |
+| NVS Storage | `0x9000` | `nvs` | 24 KiB (`0x6000`) |
+| OTA Data | `0xF000` | `otadata` | 8 KiB (`0x2000`) |
+| PHY Initialization | `0x11000` | `phy_init` | 4 KiB (`0x1000`) |
+| **SliverOS Application** | **`0x20000`** | `ota_0` | **2.5 MiB (`0x280000`)** |
+| Backup OTA Slot | `0x2A0000` | `ota_1` | 2.5 MiB (`0x280000`) |
+| SliverOS File System | `0x520000` | `osfs` | 2.625 MiB (`0x2A0000`) |
+
+---
+
+## 4. Integrity vs. Authenticity
+
+- **Integrity Verification**: The Web Host computes SHA-256 digests over all firmware images before flashing to guarantee that files were downloaded without transmission corruption or truncation.
+- **Authenticity (Cryptographic Signing)**: SHA-256 alone does not provide authenticity against malicious actors. ESP32-S3 hardware Secure Boot v2 and RSA-3072 / ECDSA signing can be enabled on production units to cryptographically lock execution to authorized keys.
+
+---
+
+## 5. Command-Line Flashing Fallback (ESP-IDF)
+
+If flashing via CLI is preferred:
+```bash
+# Flash entire system using esptool.py
+idf.py -p /dev/cu.usbmodem101 flash monitor
+```
+Or directly via `esptool.py`:
+```bash
+esptool.py --chip esp32s3 -p /dev/cu.usbmodem101 -b 460800 \
+    --before default_reset --after hard_reset write_flash -z \
+    --flash_mode dio --flash_freq 80m --flash_size 8MB \
+    0x0000 build/bootloader/bootloader.bin \
+    0x8000 build/partition_table/partition-table.bin \
+    0x20000 build/microkernel-esp32.bin
+```
