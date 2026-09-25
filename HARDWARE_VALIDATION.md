@@ -57,3 +57,12 @@
 | 23 | Web Host Canvas Render Rate | Web Host UI | `NOT RUN` | Browser renders lunar lander craft and lunar terrain at sustained 60 FPS without frame drops. |
 | 24 | Developer Terminal Console | Shell Subsystem | `NOT RUN` | Commands `help`, `apps`, `status`, `mem`, `vfs`, `reboot` execute via `SLVR_CMD_TERMINAL_INPUT`. |
 | 25 | Malformed Packet Rejection | Protocol Robustness | `NOT RUN` | Fuzz frames with invalid length, bad magic, or corrupted CRC are silently rejected without firmware crash. |
+
+---
+
+## 4. Physical Hardware Photo Evidence
+
+See:
+[docs/hardware/BOARD_PHOTO_TEST_20260925.md](hardware/BOARD_PHOTO_TEST_20260925.md)
+
+for the photographic record of the 7Semi ESP32-S3 development target (`7Semi ESP32-S3-Dev-BoardC-1U-N8R8`) and its physical Mac USB development setup.
