@@ -1,114 +1,117 @@
 # SliverOS System Design
 
-This document describes the current system boundary and the planned host-interface model.
+This document describes the SliverOS system architecture and host-interface model.
 
 ## High-Level Architecture
 
 ```mermaid
 flowchart TB
-    subgraph HOST[Optional Host Computers]
-        MAC[macOS Host Monitor]
-        WIN[Windows Host Monitor]
-        LIN[Linux Host Monitor]
-        WEB[Web Flasher<br/>Chrome / Edge]
+    subgraph HOST[Mac Browser Web Host]
+        WEB[SliverOS Web Host<br/>Chrome / Edge via Web Serial]
+        DESK[Desktop Windows & Controls]
+        TERM[Interactive Terminal]
+        MON[Real-Time Device Monitor]
+        CANV[60 FPS Retro Vector Canvas]
     end
 
-    subgraph ESP[ESP32-S3 Device]
-        USB[USB Transport + SliverOS Host Protocol]
-        UI[Graphical UI Runtime]
+    subgraph ESP[ESP32-S3 Hardware: 7Semi Dev-BoardC-1U-N8R8]
+        USB[Native USB Serial/JTAG + SLVR/1 Host Protocol]
         K[SliverOS Cooperative Executive]
         S[Scheduler]
-        M[Internal SRAM Memory Manager]
-        E[Event Bus]
-        V[VFS / OSFS]
+        M[Internal SRAM Static Arena]
+        P[8MB Octal PSRAM]
+        E[Event Bus Ring Buffer]
+        V[VFS / OSFS Block Storage]
         H[HAL]
-        D[Physical SPI Display]
 
-        subgraph FOUR[Exactly Four Apps]
+        subgraph FOUR[Exactly Four Core Applications]
             B[BLE-HID Macro]
             W[Wi-Fi Diagnostics]
             N[Network Diagnostics + Network Lab Terminal]
-            R[Retro Games]
+            R[Retro Games Engine]
         end
     end
 
-    MAC <-->|USB protocol| USB
-    WIN <-->|USB protocol| USB
-    LIN <-->|USB protocol| USB
-    WEB -->|Web Serial| USB
+    WEB <-->|SLVR/1 Binary Protocol via Web Serial| USB
 
-    USB <--> UI
-    UI <--> K
+    USB <--> K
     K --> S
     K --> M
+    K --> P
     K --> E
     K --> V
     K --> H
     S --> FOUR
     FOUR --> H
-    UI --> D
-    H --> ESPHW[ESP32-S3 Wi-Fi / BLE / GPIO / SPI / USB]
+    H --> ESPHW[ESP32-S3 Wi-Fi / BLE / GPIO / USB]
 ```
 
 ## Runtime Ownership
 
-The ESP32-S3 owns execution. The desktop host is optional.
+The ESP32-S3 owns embedded system execution. The Mac browser is the graphical display and host control console.
 
 ```mermaid
 sequenceDiagram
-    participant H as Host Monitor
-    participant U as USB Protocol
+    participant B as Mac Browser Web Host
+    participant U as USB Protocol Service
     participant K as SliverOS Executive
     participant A as Active App
 
-    H->>U: HELLO / DEVICE_INFO
-    U->>K: Request
-    K-->>U: Response / telemetry
-    U-->>H: Device state
-    H->>U: INPUT_EVENT
-    U->>K: Input event
+    B->>U: SLVR_CMD_CONNECT
+    U-->>B: SLVR_MSG_HELLO (v0x01)
+    B->>U: SLVR_CMD_GET_INFO
+    U-->>B: SLVR_MSG_DEVICE_INFO
+    loop Periodic Telemetry
+        K->>U: Collect status & memory
+        U-->>B: SLVR_MSG_DEVICE_STATUS / MEMORY_STATUS
+    end
+    B->>U: SLVR_CMD_LAUNCH_APP (e.g. Retro Games)
+    U->>K: Launch app
     K->>A: Cooperative dispatch
-    A-->>K: Result / state
-    K-->>U: UI / status event
-    U-->>H: Render/update
+    loop 60 Hz Physics Tick
+        A->>U: Packed game state (14 bytes)
+        U-->>B: SLVR_MSG_GAME_STATE
+        B-->>B: Render 60 FPS HTML5 Canvas
+        B->>U: SLVR_CMD_APP_INPUT (Thrust / Tilt)
+        U->>A: Apply input to physics
+    end
 ```
 
-## Web Flasher vs Host Monitor
+## Web Flasher & Web Host Integration
 
-These are separate products sharing the USB connection at different stages.
+Both firmware installation and runtime interaction are unified within the SliverOS Web Host:
 
 ```text
-NEW DEVICE
-    │
-    ▼
-Web Flasher ──► Detect ──► Verify ──► Flash ──► Reboot
-                                                   │
-                                                   ▼
-                                              SliverOS OS
-                                                   │
-                                  ┌────────────────┴────────────────┐
-                                  ▼                                 ▼
-                           Local SPI Display             Optional Host Monitor
-                                                            │
-                                              ┌─────────────┼─────────────┐
-                                              ▼             ▼             ▼
-                                           macOS         Windows        Linux
+NEW OR UNFLASHED HARDWARE
+             │
+             ▼
+    Web Flasher Mode ──► Detect Chip ──► Verify Target ──► Flash Binaries ──► Hard Reset
+                                                                                   │
+                                                                                   ▼
+                                                                       SliverOS Executive Boot
+                                                                                   │
+                                                                                   ▼
+                                                                        SLVR/1 Protocol Handshake
+                                                                                   │
+                                                                                   ▼
+                                                                         SliverOS Web Desktop
+                                                              ┌────────────────────┼────────────────────┐
+                                                              ▼                    ▼                    ▼
+                                                        4 Core Apps       Developer Terminal     Device Monitor
 ```
 
 ## Network Lab Boundary
 
-The Network Lab belongs inside the existing Network Diagnostics application so the project keeps exactly four application modules.
-
-Supported direction:
+The Network Lab belongs inside the Network Diagnostics application so the project maintains exactly four application modules.
 
 ```text
 Network Diagnostics
 ├── Target configuration
-├── ICMP reachability
-├── Bounded TCP service checks
-├── Wi-Fi metadata scan
+├── Bounded ICMP reachability checks
+├── Bounded TCP service checks (22, 80, 443)
+├── Wi-Fi passive metadata scan
 ├── Local authorized host discovery
-└── Terminal command interface
+└── Safe Terminal command parser (network_terminal.c)
     ├── help
     ├── status
     ├── wifi scan
@@ -117,14 +120,12 @@ Network Diagnostics
     └── clear
 ```
 
-The terminal is intentionally bounded to authorized diagnostics and defensive lab use. Credential harvesting, PMKID capture, deauthentication, password cracking, exploitation automation, and unrestricted attack commands are outside the SliverOS feature boundary.
+The terminal is strictly bounded to authorized diagnostics. Credential harvesting, PMKID capture, deauthentication, password cracking, and attack automation are blocked by safety policy.
 
-## Implementation Status
+## Hardware & Validation Status
 
-- ESP32-S3 cooperative executive: implementation in progress / hardening.
-- Graphical launcher: implemented.
-- Four application model: defined.
-- Network terminal parser: foundation implemented.
-- Web Flasher: online on Vercel; physical installation validation remains required.
-- macOS/Windows/Linux Host Monitor: architecture defined; desktop implementation remains planned.
-- Physical hardware validation: required before release readiness.
+- **Target Hardware**: 7Semi ESP32-S3-Dev-BoardC-1U-N8R8 (8 MB Flash, 8 MB Octal PSRAM, Native USB Serial/JTAG).
+- **Physical Display**: None required; zero SPI DMA framebuffer overhead.
+- **Host Unit Tests**: 12/12 passing (100%).
+- **Web Host Tests**: 15/15 passing (100%).
+- **Physical Bench Matrix**: 25 points defined in `docs/HARDWARE_VALIDATION.md`, prepared for bench execution.
