@@ -126,3 +126,15 @@ npm test
 npm run build
 ```
 Validates SHA-256 verification, strict target compatibility, SLVR/1 framing, CRC16-CCITT determinism, stream parser resynchronization, and generates the production Vite bundle.
+
+---
+
+## 5. Physical Hardware Evidence
+
+The SliverOS development target is the **7Semi ESP32-S3 Development Board** (`7Semi ESP32-S3-Dev-BoardC-1U-N8R8` with `ESP32-S3-WROOM-1 MCN8R8` module).
+
+Physical board photographs and the associated experiment record are documented here:
+
+[docs/hardware/BOARD_PHOTO_TEST_20260925.md](docs/hardware/BOARD_PHOTO_TEST_20260925.md)
+
+The photographic record documents the physical hardware setup and must not be interpreted as proof of complete firmware/hardware functional validation.
