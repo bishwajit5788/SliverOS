@@ -56,6 +56,32 @@ static mk_status_t queue_transfer(const uint8_t *data, size_t length, uint8_t dc
     }
     return MK_STATUS_OK;
 }
+
+/*
+ * Commands are passed by value to this API, so their caller-side storage is
+ * normally a stack variable. The SPI transaction is queued asynchronously and
+ * may execute after this function returns. Store the command in the persistent
+ * queue slot so the TX buffer remains valid until spi_device_get_trans_result()
+ * releases that slot.
+ */
+static mk_status_t queue_command(uint8_t cmd)
+{
+    if (s_spi_handle == NULL) return MK_STATUS_NOT_FOUND;
+    hal_spi_slot_t *slot = find_free_slot();
+    if (slot == NULL) return MK_STATUS_BUSY;
+    memset(&slot->transaction, 0, sizeof(slot->transaction));
+    slot->command_byte = cmd;
+    slot->dc_level = 0U;
+    slot->transaction.length = 8U;
+    slot->transaction.tx_buffer = &slot->command_byte;
+    slot->transaction.user = &slot->dc_level;
+    slot->in_use = true;
+    if (spi_device_queue_trans(s_spi_handle, &slot->transaction, 0) != ESP_OK) {
+        slot->in_use = false;
+        return MK_STATUS_BUSY;
+    }
+    return MK_STATUS_OK;
+}
 #endif
 
 mk_status_t hal_spi_init(void)
@@ -105,7 +131,7 @@ mk_status_t hal_spi_write_cmd(uint8_t cmd)
 {
 #if defined(ESP_PLATFORM)
     hal_spi_service();
-    return queue_transfer(&cmd, 1U, 0U);
+    return queue_command(cmd);
 #else
     (void)cmd; return MK_STATUS_OK;
 #endif
