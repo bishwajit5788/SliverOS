@@ -11,9 +11,7 @@
 #include "esp_chip_info.h"
 #include "esp_flash.h"
 #include "esp_heap_caps.h"
-#if defined(CONFIG_SPIRAM)
-#include "esp_psram.h"
-#endif
+/* Use heap_caps only — avoids hard dependency on esp_psram component headers. */
 #endif
 
 static mk_kernel_t s_kernel;
@@ -158,9 +156,9 @@ void mk_kernel_get_diag_identity(mk_diag_identity_t *out_identity)
     out_identity->internal_sram_free = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
 
 #if defined(CONFIG_SPIRAM)
-    out_identity->psram_size_bytes = (uint32_t)esp_psram_get_size();
     out_identity->psram_total = heap_caps_get_total_size(MALLOC_CAP_SPIRAM);
     out_identity->psram_free = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
+    out_identity->psram_size_bytes = out_identity->psram_total;
 #else
     out_identity->psram_size_bytes = 0U;
     out_identity->psram_total = 0U;
