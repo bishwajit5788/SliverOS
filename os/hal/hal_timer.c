@@ -11,8 +11,11 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #else
+/* Host unit-test portability: monotonic clock + nanosleep.
+ * Feature-test macro must appear before any system headers. */
+#undef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200809L
 #include <time.h>
-#include <unistd.h>
 #endif
 
 mk_status_t hal_timer_init(void)
@@ -45,7 +48,10 @@ void hal_timer_delay_ms(uint32_t ms)
         ets_delay_us(ms * 1000U);
     }
 #else
-    usleep(ms * 1000U);
+    struct timespec req;
+    req.tv_sec = (time_t)(ms / 1000U);
+    req.tv_nsec = (long)((ms % 1000U) * 1000000UL);
+    (void)nanosleep(&req, NULL);
 #endif
 }
 
@@ -54,6 +60,9 @@ void hal_timer_delay_us(uint32_t us)
 #if defined(ESP_PLATFORM)
     ets_delay_us(us);
 #else
-    usleep(us);
+    struct timespec req;
+    req.tv_sec = (time_t)(us / 1000000U);
+    req.tv_nsec = (long)((us % 1000000U) * 1000UL);
+    (void)nanosleep(&req, NULL);
 #endif
 }

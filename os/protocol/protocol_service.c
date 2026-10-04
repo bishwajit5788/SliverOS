@@ -103,11 +103,45 @@ static void send_device_info(void)
     slvr_payload_device_info_t info;
     memset(&info, 0, sizeof(info));
 
-    strncpy(info.product, "SliverOS", sizeof(info.product) - 1U);
-    strncpy(info.version, MK_OS_VERSION, sizeof(info.version) - 1U);
-    strncpy(info.build_id, MK_OS_BUILD_ID, sizeof(info.build_id) - 1U);
-    strncpy(info.git_revision, diag.git_revision, sizeof(info.git_revision) - 1U);
-    strncpy(info.chip_family, diag.chip_family, sizeof(info.chip_family) - 1U);
+    /* Bounded NUL-terminated copies. Source fields may be longer than payload slots. */
+    {
+        size_t n;
+        n = sizeof(info.product) - 1U;
+        memcpy(info.product, "SliverOS", n < 8U ? n : 8U);
+        info.product[n < 8U ? n : 8U] = '\0';
+
+        n = sizeof(info.version) - 1U;
+        size_t vlen = strlen(MK_OS_VERSION);
+        if (vlen > n) {
+            vlen = n;
+        }
+        memcpy(info.version, MK_OS_VERSION, vlen);
+        info.version[vlen] = '\0';
+
+        n = sizeof(info.build_id) - 1U;
+        size_t blen = strlen(MK_OS_BUILD_ID);
+        if (blen > n) {
+            blen = n;
+        }
+        memcpy(info.build_id, MK_OS_BUILD_ID, blen);
+        info.build_id[blen] = '\0';
+
+        n = sizeof(info.git_revision) - 1U;
+        size_t glen = strlen(diag.git_revision);
+        if (glen > n) {
+            glen = n;
+        }
+        memcpy(info.git_revision, diag.git_revision, glen);
+        info.git_revision[glen] = '\0';
+
+        n = sizeof(info.chip_family) - 1U;
+        size_t clen = strlen(diag.chip_family);
+        if (clen > n) {
+            clen = n;
+        }
+        memcpy(info.chip_family, diag.chip_family, clen);
+        info.chip_family[clen] = '\0';
+    }
     info.chip_revision = diag.chip_revision;
     info.flash_size_bytes = diag.flash_size_bytes;
     info.psram_size_bytes = diag.psram_size_bytes;
@@ -296,10 +330,10 @@ static void handle_terminal_command(const char *cmd_line)
         return;
     }
 
-    char out_buf[256];
+    char out_buf[512];
 
     if (strcmp(cmd, "help") == 0) {
-        snprintf(out_buf, sizeof(out_buf),
+        (void)snprintf(out_buf, sizeof(out_buf),
                  "SliverOS Shell Commands:\r\n"
                  "  help       - Print this command list\r\n"
                  "  apps       - List 4 registered applications & states\r\n"

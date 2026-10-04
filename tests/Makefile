@@ -1,5 +1,6 @@
 CC ?= clang
 CFLAGS = -Wall -Wextra -Werror -std=c11 -O2 -DMK_HOST_TEST=1 \
+         -D_POSIX_C_SOURCE=200809L \
          -I../os/kernel \
          -I../os/hal \
          -I../os/vfs \
