@@ -12,12 +12,103 @@
 #if defined(ESP_PLATFORM)
 #include "lwip/sockets.h"
 #include "lwip/netdb.h"
+#include "lwip/inet.h"
 #include "ping/ping_sock.h"
+#include "esp_netif.h"
+#include <fcntl.h>
+#include <unistd.h>
+#include <errno.h>
 #endif
 
 static net_diag_report_t s_report;
 static uint32_t s_step_timer = 0U;
 static int32_t s_active_sock = -1;
+
+#if defined(ESP_PLATFORM)
+static esp_ping_handle_t s_ping_handle = NULL;
+static volatile bool s_ping_done = false;
+static volatile bool s_ping_success = false;
+static volatile uint32_t s_ping_rtt_ms = 0U;
+
+static void ping_on_success(esp_ping_handle_t hdl, void *args)
+{
+    (void)args;
+    uint8_t ttl = 0;
+    uint16_t seqno = 0;
+    uint32_t elapsed_time = 0;
+    uint32_t recv_len = 0;
+    ip_addr_t target_addr;
+    (void)esp_ping_get_profile(hdl, ESP_PING_PROF_SEQNO, &seqno, sizeof(seqno));
+    (void)esp_ping_get_profile(hdl, ESP_PING_PROF_TTL, &ttl, sizeof(ttl));
+    (void)esp_ping_get_profile(hdl, ESP_PING_PROF_IPADDR, &target_addr, sizeof(target_addr));
+    (void)esp_ping_get_profile(hdl, ESP_PING_PROF_SIZE, &recv_len, sizeof(recv_len));
+    (void)esp_ping_get_profile(hdl, ESP_PING_PROF_TIMEGAP, &elapsed_time, sizeof(elapsed_time));
+    s_ping_success = true;
+    s_ping_rtt_ms = elapsed_time;
+}
+
+static void ping_on_timeout(esp_ping_handle_t hdl, void *args)
+{
+    (void)hdl;
+    (void)args;
+    /* leave s_ping_success false */
+}
+
+static void ping_on_end(esp_ping_handle_t hdl, void *args)
+{
+    (void)hdl;
+    (void)args;
+    s_ping_done = true;
+}
+
+static void ping_cleanup(void)
+{
+    if (s_ping_handle != NULL) {
+        (void)esp_ping_stop(s_ping_handle);
+        (void)esp_ping_delete_session(s_ping_handle);
+        s_ping_handle = NULL;
+    }
+}
+
+static bool ping_start_oneshot(const char *host)
+{
+    ping_cleanup();
+    s_ping_done = false;
+    s_ping_success = false;
+    s_ping_rtt_ms = 0U;
+
+    ip_addr_t target_addr;
+    memset(&target_addr, 0, sizeof(target_addr));
+    if (ipaddr_aton(host, &target_addr) == 0) {
+        return false;
+    }
+
+    esp_ping_config_t cfg = ESP_PING_DEFAULT_CONFIG();
+    cfg.count = 1;
+    cfg.timeout_ms = 500;
+    cfg.interval_ms = 100;
+    cfg.target_addr = target_addr;
+    cfg.task_stack_size = 2048;
+    cfg.task_prio = 1;
+
+    esp_ping_callbacks_t cbs = {
+        .cb_args = NULL,
+        .on_ping_success = ping_on_success,
+        .on_ping_timeout = ping_on_timeout,
+        .on_ping_end = ping_on_end,
+    };
+
+    if (esp_ping_new_session(&cfg, &cbs, &s_ping_handle) != ESP_OK) {
+        s_ping_handle = NULL;
+        return false;
+    }
+    if (esp_ping_start(s_ping_handle) != ESP_OK) {
+        ping_cleanup();
+        return false;
+    }
+    return true;
+}
+#endif
 
 mk_status_t network_diagnostics_init(void)
 {
@@ -38,6 +129,7 @@ mk_status_t network_diagnostics_set_target(const char *target_ip)
     }
 
     strncpy(s_report.target_ip, target_ip, sizeof(s_report.target_ip) - 1);
+    s_report.target_ip[sizeof(s_report.target_ip) - 1U] = '\0';
     s_report.target_configured = true;
     s_report.icmp_reachable = false;
     s_report.icmp_rtt_ms = 0U;
@@ -46,6 +138,12 @@ mk_status_t network_diagnostics_set_target(const char *target_ip)
     s_report.tcp_443_open = false;
     s_report.current_state = NET_DIAG_TARGET_CONFIGURED;
     s_step_timer = 0U;
+#if defined(ESP_PLATFORM)
+    ping_cleanup();
+    s_ping_done = false;
+    s_ping_success = false;
+    s_ping_rtt_ms = 0U;
+#endif
 
     return MK_STATUS_OK;
 }
@@ -108,11 +206,27 @@ void network_diagnostics_task(void *context)
             break;
 
         case NET_DIAG_ICMP_PENDING:
-            /* Real ICMP ping check: default to false unless actual echo response received.
-             * Strictly zero fabricated reachability or fake latency metrics. */
+            /* Start one-shot ICMP (ESP) or finish immediately with no fabricated metrics (host). */
+#if defined(ESP_PLATFORM)
+            if (s_ping_handle == NULL && !s_ping_done) {
+                if (!ping_start_oneshot(s_report.target_ip)) {
+                    s_report.icmp_reachable = false;
+                    s_report.icmp_rtt_ms = 0U;
+                    s_report.current_state = NET_DIAG_ICMP_RESULT;
+                }
+            } else if (s_ping_done) {
+                s_report.icmp_reachable = s_ping_success;
+                s_report.icmp_rtt_ms = s_ping_success ? s_ping_rtt_ms : 0U;
+                ping_cleanup();
+                s_report.current_state = NET_DIAG_ICMP_RESULT;
+            }
+            /* else: still waiting for ping_on_end — remain in PENDING (cooperative) */
+#else
+            /* Host unit tests: no real ICMP stack; report unreachable (never invent RTT). */
             s_report.icmp_reachable = false;
             s_report.icmp_rtt_ms = 0U;
             s_report.current_state = NET_DIAG_ICMP_RESULT;
+#endif
             break;
 
         case NET_DIAG_ICMP_RESULT:

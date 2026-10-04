@@ -6,6 +6,7 @@
 #include "memory_pool.h"
 #include "fault_manager.h"
 #include <string.h>
+#include <stdint.h>
 
 #define MK_POOL_MAGIC_ALLOC 0x504F4F4CU /* "POOL" */
 #define MK_POOL_MAGIC_FREE  0x46524545U /* "FREE" */
@@ -16,6 +17,11 @@ typedef struct mk_pool_node {
     uint8_t in_use;
     uint16_t reserved;
     struct mk_pool_node *next_free;
+    /* On 32-bit targets (ESP32-S3) pointer is 4 bytes → natural size 12.
+     * Pad to keep sizeof multiple of 8 for slot alignment. */
+#if UINTPTR_MAX <= 0xFFFFFFFFu
+    uint32_t pad32;
+#endif
 } mk_pool_node_t;
 
 _Static_assert(sizeof(mk_pool_node_t) % 8 == 0, "Pool node header must be 8-byte aligned");

@@ -42,4 +42,6 @@ idf_component_register(
         esp_netif
         lwip
         spi_flash
+        bt
+        heap
 )
