@@ -37,7 +37,8 @@ typedef enum {
     MK_STATUS_IO_ERROR          = -9,
     MK_STATUS_CORRUPTED         = -10,
     MK_STATUS_QUEUE_FULL        = -11,
-    MK_STATUS_QUEUE_EMPTY       = -12
+    MK_STATUS_QUEUE_EMPTY       = -12,
+    MK_STATUS_NOT_SUPPORTED     = -13
 } mk_status_t;
 
 /* Kernel Lifecycle States */

@@ -85,10 +85,19 @@ mk_status_t hal_ble_send_report(const hal_ble_hid_report_t *report)
     }
 
 #if defined(ESP_PLATFORM)
-    /* Transmit HID report characteristic notification */
-#endif
-
+    /*
+     * HID report GATT notification is not yet wired to a registered
+     * characteristic handle. Do not claim successful transmission.
+     * Returns MK_STATUS_NOT_SUPPORTED until the HID service + notify path
+     * is completed (NimBLE HID or Bluedroid GATTS notify).
+     */
+    (void)report;
+    return MK_STATUS_NOT_SUPPORTED;
+#else
+    /* Host unit tests: accept the report when simulated-connected. */
+    (void)report;
     return MK_STATUS_OK;
+#endif
 }
 
 mk_status_t hal_ble_send_key(uint8_t modifier, uint8_t keycode)
